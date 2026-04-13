@@ -1,6 +1,6 @@
 import type { Role } from "@/lib/types";
 
-export type AppRouteKey = "dashboard" | "clients" | "projects" | "activity" | "storage" | "cms" | "users";
+export type AppRouteKey = "dashboard" | "clients" | "projects" | "activity" | "storage" | "cms" | "users" | "live";
 
 export const routePathByKey: Record<AppRouteKey, string> = {
   dashboard: "/app",
@@ -10,10 +10,11 @@ export const routePathByKey: Record<AppRouteKey, string> = {
   storage: "/app/storage",
   cms: "/app/cms",
   users: "/app/users",
+  live: "/app/live",
 };
 
 export const roleAccess: Record<Role, AppRouteKey[]> = {
-  admin: ["dashboard", "clients", "projects", "activity", "storage", "cms", "users"],
+  admin: ["dashboard", "clients", "projects", "activity", "storage", "cms", "users", "live"],
   commercial: ["dashboard", "clients", "storage"],
   marketing: ["dashboard", "projects", "activity", "storage", "cms"],
   dev: ["dashboard", "projects", "activity", "storage"],

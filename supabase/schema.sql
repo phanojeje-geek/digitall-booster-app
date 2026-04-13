@@ -5,6 +5,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
+  email text,
   role text not null default 'dev' check (role in ('admin', 'commercial', 'marketing', 'dev', 'designer')),
   sales_group text not null default 'groupe-a' check (sales_group in ('groupe-a', 'groupe-b', 'groupe-c')),
   is_blocked boolean not null default false,
@@ -162,13 +163,17 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles(id, full_name, role)
+  insert into public.profiles(id, full_name, email, role)
   values(
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', ''),
+    new.email,
     coalesce(new.raw_user_meta_data->>'role', 'dev')
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    role = coalesce(excluded.role, public.profiles.role);
   return new;
 end;
 $$;
@@ -193,6 +198,7 @@ alter table public.notifications enable row level security;
 alter table public.connection_logs enable row level security;
 
 drop policy if exists "profiles self read" on public.profiles;
+drop policy if exists "profiles self or admin read" on public.profiles;
 create policy "profiles self or admin read" on public.profiles
 for select using (
   auth.uid() = id
@@ -213,6 +219,7 @@ with check (
 );
 
 drop policy if exists "owner all clients" on public.clients;
+drop policy if exists "clients owner or admin" on public.clients;
 create policy "clients owner or admin" on public.clients
 for all using (
   auth.uid() = owner_id
@@ -224,6 +231,7 @@ with check (
 );
 
 drop policy if exists "owner all projects" on public.projects;
+drop policy if exists "projects select owner assigned admin" on public.projects;
 create policy "projects select owner assigned admin" on public.projects
 for select using (
   auth.uid() = owner_id

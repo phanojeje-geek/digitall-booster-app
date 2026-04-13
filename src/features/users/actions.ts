@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
@@ -62,10 +63,23 @@ export async function resetUserAccessAction(formData: FormData) {
 
   if (!isDemoMode) {
     const supabase = await createClient();
+    const { data: target } = await supabase.from("profiles").select("email").eq("id", userId).single();
     await supabase
       .from("profiles")
       .update({ access_reset_at: new Date().toISOString(), is_blocked: true })
       .eq("id", userId);
+
+    if (target?.email) {
+      const headerStore = await headers();
+      const origin =
+        headerStore.get("origin") ??
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        process.env.NEXT_PUBLIC_APP_URL ??
+        "http://localhost:3000";
+      await supabase.auth.resetPasswordForEmail(target.email, {
+        redirectTo: `${origin}/login`,
+      });
+    }
   }
 
   revalidatePath("/app/users");

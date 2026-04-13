@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 import type { ComponentType } from "react";
+import { createClient } from "@/lib/supabase/browser";
 
 type CommercialPoint = {
   id: string;
@@ -30,6 +31,7 @@ export function CommercialGroupsMap() {
 
   useEffect(() => {
     let mounted = true;
+    const supabase = createClient();
 
     const load = async () => {
       try {
@@ -44,10 +46,21 @@ export function CommercialGroupsMap() {
     };
 
     void load();
-    const interval = window.setInterval(() => void load(), 10000);
+
+    const channel = supabase
+      .channel("admin-commercial-locations")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
-      window.clearInterval(interval);
+      void supabase.removeChannel(channel);
     };
   }, []);
 

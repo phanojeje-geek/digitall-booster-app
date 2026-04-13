@@ -8,6 +8,7 @@ export type ReportStatus = "en cours" | "termine";
 export type Profile = {
   id: string;
   full_name: string | null;
+  email?: string | null;
   role: Role;
   sales_group?: "groupe-a" | "groupe-b" | "groupe-c";
   is_blocked?: boolean;

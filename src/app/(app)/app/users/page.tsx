@@ -16,6 +16,7 @@ import type { Role } from "@/lib/types";
 type UserRow = {
   id: string;
   full_name: string | null;
+  email?: string | null;
   role: Role;
   sales_group?: "groupe-a" | "groupe-b" | "groupe-c";
   is_blocked?: boolean;
@@ -56,6 +57,7 @@ export default async function UsersPage() {
       {
         id: profile.id,
         full_name: profile.full_name,
+        email: profile.email ?? null,
         role: profile.role,
         sales_group: "groupe-a",
         is_blocked: false,
@@ -75,7 +77,7 @@ export default async function UsersPage() {
       supabase
         .from("profiles")
         .select(
-          "id,full_name,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
+          "id,full_name,email,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
         )
         .order("created_at", { ascending: false }),
       supabase
@@ -125,7 +127,7 @@ export default async function UsersPage() {
                 className="border-t border-zinc-200/80 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
               >
                 <td className="py-2 font-medium">{user.full_name || "Sans nom"}</td>
-                <td className="text-zinc-500">{user.id}</td>
+                <td className="text-zinc-500">{user.email || user.id}</td>
                 <td className="uppercase">{user.role}</td>
                 <td className="align-top">
                   {user.role === "commercial" ? (

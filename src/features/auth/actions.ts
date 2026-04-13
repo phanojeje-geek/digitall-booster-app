@@ -42,6 +42,7 @@ export async function signUpAction(formData: FormData) {
     await supabase.from("profiles").upsert({
       id: data.user.id,
       full_name: fullName,
+      email,
       role,
     });
   }

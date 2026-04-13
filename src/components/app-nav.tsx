@@ -8,13 +8,14 @@ import {
   Files,
   LayoutDashboard,
   LucideIcon,
+  Radar,
   ShieldCheck,
   Users,
   WandSparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type AppNavIcon = "dashboard" | "clients" | "projects" | "activity" | "storage" | "cms" | "users";
+export type AppNavIcon = "dashboard" | "clients" | "projects" | "activity" | "storage" | "cms" | "users" | "live";
 
 export type AppNavLink = {
   href: string;
@@ -30,6 +31,7 @@ const iconMap: Record<AppNavIcon, LucideIcon> = {
   storage: Files,
   cms: WandSparkles,
   users: ShieldCheck,
+  live: Radar,
 };
 
 export function AppNav({

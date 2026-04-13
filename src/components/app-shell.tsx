@@ -20,6 +20,7 @@ const links = [
   { href: "/app/storage", label: "Fichiers", icon: "storage" },
   { href: "/app/cms", label: "CMS", icon: "cms" },
   { href: "/app/users", label: "Utilisateurs", icon: "users" },
+  { href: "/app/live", label: "Live", icon: "live" },
 ] satisfies AppNavLink[];
 
 const keyByPath: Record<string, AppNavIcon> = {
@@ -30,6 +31,7 @@ const keyByPath: Record<string, AppNavIcon> = {
   "/app/storage": "storage",
   "/app/cms": "cms",
   "/app/users": "users",
+  "/app/live": "live",
 };
 
 export function AppShell({
