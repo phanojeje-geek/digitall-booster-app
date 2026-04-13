@@ -31,7 +31,6 @@ export default async function SignUpPage({
           className="h-10 w-full rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950/85"
           defaultValue="dev"
         >
-          <option value="admin">admin</option>
           <option value="commercial">commercial</option>
           <option value="marketing">marketing</option>
           <option value="dev">dev</option>

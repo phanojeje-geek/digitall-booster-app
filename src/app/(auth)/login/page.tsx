@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { signInAction } from "@/features/auth/actions";
 import { LoginForm } from "@/components/login-form";
 
@@ -32,16 +32,6 @@ export default async function LoginPage({
         <LoginForm action={signInAction} />
       </CardBlock>
 
-      <CardBlock title="Comptes de test local">
-        <div className="grid gap-2 text-xs text-zinc-700 dark:text-zinc-200">
-          <Credential email="admin@local.test" password="Admin123!" />
-          <Credential email="commercial@local.test" password="Commercial123!" />
-          <Credential email="marketing@local.test" password="Marketing123!" />
-          <Credential email="dev@local.test" password="Dev123!" />
-          <Credential email="designer@local.test" password="Designer123!" />
-        </div>
-      </CardBlock>
-
       <div className="rounded-xl border border-zinc-200/80 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-300">
         <p className="mb-1 inline-flex items-center gap-1 font-semibold">
           <ShieldCheck size={14} />
@@ -65,18 +55,6 @@ function CardBlock({ title, children }: { title: string; children: React.ReactNo
     <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
       <p className="mb-3 font-semibold">{title}</p>
       {children}
-    </div>
-  );
-}
-
-function Credential({ email, password }: { email: string; password: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-2.5 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-      <span className="truncate pr-2">{email}</span>
-      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 font-medium dark:bg-zinc-800">
-        <KeyRound size={12} />
-        {password}
-      </span>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
@@ -125,6 +126,63 @@ export async function sendAdminNotificationAction(formData: FormData) {
       message,
       read: false,
     });
+  }
+
+  revalidatePath("/app/users");
+}
+
+export async function deleteUserAction(formData: FormData) {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId || userId === currentProfile.id) return;
+  if (isDemoMode) return;
+
+  try {
+    const adminClient = createAdminClient();
+    await adminClient.auth.admin.deleteUser(userId);
+  } catch {
+    const supabase = await createClient();
+    await supabase.from("profiles").update({ is_blocked: true }).eq("id", userId);
+  }
+
+  revalidatePath("/app/users");
+}
+
+export async function createDefaultAdminAccountAction() {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+  if (isDemoMode) return;
+
+  const email = process.env.DEFAULT_ADMIN_EMAIL ?? "phanojeje@gmail.com";
+  const password = process.env.DEFAULT_ADMIN_PASSWORD ?? "password123";
+
+  const adminClient = createAdminClient();
+
+  const { data: existing } = await adminClient.auth.admin.listUsers();
+  const found = existing.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+
+  if (!found) {
+    const { data: created } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: "Phanojeje", role: "admin" },
+    });
+
+    if (created.user?.id) {
+      const supabase = await createClient();
+      await supabase.from("profiles").upsert({
+        id: created.user.id,
+        full_name: "Phanojeje",
+        email,
+        role: "admin",
+      });
+    }
+  } else {
+    const supabase = await createClient();
+    await supabase.from("profiles").update({ role: "admin", email }).eq("id", found.id);
   }
 
   revalidatePath("/app/users");

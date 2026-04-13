@@ -6,24 +6,18 @@ import { redirect } from "next/navigation";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
-
-const demoAccounts: Array<{ email: string; password: string; role: Role }> = [
-  { email: "admin@local.test", password: "Admin123!", role: "admin" },
-  { email: "commercial@local.test", password: "Commercial123!", role: "commercial" },
-  { email: "marketing@local.test", password: "Marketing123!", role: "marketing" },
-  { email: "dev@local.test", password: "Dev123!", role: "dev" },
-  { email: "designer@local.test", password: "Designer123!", role: "designer" },
-];
+const allowedSignupRoles: Role[] = ["commercial", "marketing", "dev", "designer"];
 
 export async function signUpAction(formData: FormData) {
   if (isDemoMode) {
-    redirect("/app");
+    redirect("/signup?error=Mode%20demo%20desactive%20pour%20les%20comptes%20reels");
   }
 
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "");
-  const role = String(formData.get("role") ?? "dev") as Role;
+  const inputRole = String(formData.get("role") ?? "dev") as Role;
+  const role = allowedSignupRoles.includes(inputRole) ? inputRole : "dev";
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -58,17 +52,7 @@ export async function signInAction(formData: FormData) {
   const geoLabel = String(formData.get("geo_label") ?? "");
 
   if (isDemoMode) {
-    const account = demoAccounts.find((item) => item.email === email && item.password === password);
-    if (!account) {
-      redirect("/login?error=Identifiants%20demo%20invalides");
-    }
-
-    const cookieStore = await cookies();
-    cookieStore.set("demo_role", account.role, {
-      path: "/",
-      sameSite: "lax",
-    });
-    redirect("/app");
+    redirect("/login?error=Mode%20demo%20desactive.%20Configurez%20Supabase%20pour%20les%20comptes%20reels");
   }
 
   const supabase = await createClient();

@@ -6,6 +6,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import {
+  createDefaultAdminAccountAction,
+  deleteUserAction,
   resetUserAccessAction,
   sendAdminNotificationAction,
   toggleUserBlockAction,
@@ -107,6 +109,18 @@ export default async function UsersPage() {
           </p>
         ) : null}
       </div>
+
+      <Card className="space-y-3">
+        <h2 className="text-lg font-semibold">Bootstrap admin</h2>
+        <p className="text-sm text-zinc-500">
+          Cree (ou force) le compte admin par defaut: phanojeje@gmail.com.
+        </p>
+        <form action={createDefaultAdminAccountAction}>
+          <Button type="submit" variant="secondary">
+            Initialiser admin par defaut
+          </Button>
+        </form>
+      </Card>
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">Notification admin</h2>
@@ -275,6 +289,12 @@ export default async function UsersPage() {
                       <input type="hidden" name="user_id" value={user.id} />
                       <Button type="submit" variant="ghost">
                         Reset acces
+                      </Button>
+                    </form>
+                    <form action={deleteUserAction}>
+                      <input type="hidden" name="user_id" value={user.id} />
+                      <Button type="submit" variant="danger">
+                        Supprimer
                       </Button>
                     </form>
                   </div>
