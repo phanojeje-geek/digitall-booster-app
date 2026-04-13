@@ -149,10 +149,29 @@ create table if not exists public.pages_content (
 -- Notifications
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid references auth.users(id) on delete cascade,
+  sender_id uuid references auth.users(id) on delete set null,
+  scope text not null default 'user' check (scope in ('user', 'role', 'global')),
+  target_role text,
+  target_user_id uuid references auth.users(id) on delete set null,
+  title text,
   message text not null,
   read boolean not null default false,
   created_at timestamptz not null default now()
+);
+
+alter table public.notifications alter column owner_id drop not null;
+alter table public.notifications drop constraint if exists notifications_scope_check;
+alter table public.notifications
+  add constraint notifications_scope_check
+  check (scope in ('user', 'role', 'global'));
+
+create table if not exists public.notification_reads (
+  id uuid primary key default gen_random_uuid(),
+  notification_id uuid not null references public.notifications(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  read_at timestamptz not null default now(),
+  unique(notification_id, user_id)
 );
 
 -- Trigger profile creation
@@ -195,6 +214,7 @@ alter table public.client_signatures enable row level security;
 alter table public.files_index enable row level security;
 alter table public.pages_content enable row level security;
 alter table public.notifications enable row level security;
+alter table public.notification_reads enable row level security;
 alter table public.connection_logs enable row level security;
 
 drop policy if exists "profiles self read" on public.profiles;
@@ -306,7 +326,33 @@ drop policy if exists "owner all pages_content" on public.pages_content;
 create policy "owner all pages_content" on public.pages_content for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
 drop policy if exists "owner all notifications" on public.notifications;
-create policy "owner all notifications" on public.notifications for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+drop policy if exists "notifications read target" on public.notifications;
+create policy "notifications read target" on public.notifications
+for select using (
+  owner_id = auth.uid()
+  or target_user_id = auth.uid()
+  or scope = 'global'
+  or (
+    scope = 'role'
+    and exists (
+      select 1 from public.profiles p where p.id = auth.uid() and p.role = target_role
+    )
+  )
+  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+drop policy if exists "notifications admin manage" on public.notifications;
+create policy "notifications admin manage" on public.notifications
+for all using (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+)
+with check (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+drop policy if exists "notification reads self all" on public.notification_reads;
+create policy "notification reads self all" on public.notification_reads
+for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "connection logs self or admin read" on public.connection_logs;
 create policy "connection logs self or admin read" on public.connection_logs

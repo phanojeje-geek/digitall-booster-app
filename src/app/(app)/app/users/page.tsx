@@ -7,6 +7,7 @@ import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import {
   resetUserAccessAction,
+  sendAdminNotificationAction,
   toggleUserBlockAction,
   updateCommercialGroupAction,
   updateUserRoleAction,
@@ -106,6 +107,57 @@ export default async function UsersPage() {
           </p>
         ) : null}
       </div>
+
+      <Card className="space-y-3">
+        <h2 className="text-lg font-semibold">Notification admin</h2>
+        <form action={sendAdminNotificationAction} className="grid gap-3 md:grid-cols-2">
+          <input
+            name="title"
+            placeholder="Titre (optionnel)"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          />
+          <select
+            name="scope"
+            defaultValue="global"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          >
+            <option value="global">Globale (tout le monde)</option>
+            <option value="role">Par profil</option>
+            <option value="user">Par utilisateur</option>
+          </select>
+          <select
+            name="target_role"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          >
+            <option value="">Profil cible (si scope=role)</option>
+            {roles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <select
+            name="target_user_id"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          >
+            <option value="">Utilisateur cible (si scope=user)</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.full_name || u.email || u.id}
+              </option>
+            ))}
+          </select>
+          <textarea
+            name="message"
+            required
+            placeholder="Message de notification"
+            className="min-h-20 rounded-lg border border-zinc-200/80 bg-white/90 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85 md:col-span-2"
+          />
+          <Button type="submit" variant="secondary">
+            Envoyer notification
+          </Button>
+        </form>
+      </Card>
 
       <Card className="overflow-auto">
         <table className="w-full min-w-[680px] text-sm">

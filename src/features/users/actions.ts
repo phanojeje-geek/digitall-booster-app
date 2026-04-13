@@ -100,3 +100,32 @@ export async function updateCommercialGroupAction(formData: FormData) {
 
   revalidatePath("/app/users");
 }
+
+export async function sendAdminNotificationAction(formData: FormData) {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+
+  const title = String(formData.get("title") ?? "");
+  const message = String(formData.get("message") ?? "");
+  const scope = String(formData.get("scope") ?? "global");
+  const targetRole = String(formData.get("target_role") ?? "");
+  const targetUserId = String(formData.get("target_user_id") ?? "");
+
+  if (!message || !["global", "role", "user"].includes(scope)) return;
+
+  if (!isDemoMode) {
+    const supabase = await createClient();
+    await supabase.from("notifications").insert({
+      sender_id: currentProfile.id,
+      scope,
+      target_role: scope === "role" ? targetRole || null : null,
+      target_user_id: scope === "user" ? targetUserId || null : null,
+      owner_id: scope === "user" ? targetUserId || null : null,
+      title: title || null,
+      message,
+      read: false,
+    });
+  }
+
+  revalidatePath("/app/users");
+}
