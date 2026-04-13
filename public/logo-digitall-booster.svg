@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#0c4a6e" />
+    </linearGradient>
+    <linearGradient id="txt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#bae6fd" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="520" rx="36" fill="url(#bg)" />
+  <ellipse cx="650" cy="450" rx="430" ry="34" fill="none" stroke="#22d3ee" stroke-width="9" opacity="0.55" />
+  <path d="M785 130c26-14 48-38 68-64-2 29-8 56-24 80l-44-16z" fill="#7dd3fc" />
+  <path d="M760 150c25-25 62-53 98-66-12 38-32 76-57 101-20 2-33-9-41-35z" fill="#e0f2fe" />
+  <path d="M735 195c13-8 24-7 36 0l-23 50c-6 12-24 12-30 0l-20-45 37-5z" fill="#f59e0b" />
+  <circle cx="796" cy="139" r="12" fill="#0ea5e9" />
+  <text x="160" y="320" font-size="128" font-weight="800" fill="url(#txt)" font-family="Arial, Helvetica, sans-serif">digitall</text>
+  <text x="212" y="418" font-size="108" font-style="italic" font-weight="800" fill="url(#accent)" font-family="Arial, Helvetica, sans-serif">booster</text>
+</svg>

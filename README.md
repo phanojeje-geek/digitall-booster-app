@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Digital Booster App
 
-## Getting Started
+MVP SaaS interne pour agence digitale (Next.js + Supabase + PWA).
 
-First, run the development server:
+## Stack
+
+- Frontend: Next.js (App Router) + Tailwind CSS
+- Backend: Supabase (Auth, Postgres, Storage, Realtime)
+- PWA: `manifest.json` + `sw.js` (mode offline basique)
+
+## Modules inclus
+
+- Authentification: inscription, connexion, deconnexion, middleware de protection
+- Roles: `admin`, `commercial`, `marketing`, `dev`
+- CRM Clients: CRUD, filtres, recherche, vue table + cards
+- Projets: CRUD, assignation utilisateur, vue Kanban simple
+- Taches: CRUD, assignation, checklist/statut Kanban
+- Storage: upload fichiers client + previsualisation image
+- Dashboard global: KPIs + activite recente
+- CMS basic: edition section + JSON contenu
+- Notifications: insertion et lecture temps reel via Supabase Realtime
+- Securite: politiques RLS par `owner_id`
+
+## Installation
+
+1. Installer les dependances:
+
+```bash
+npm install
+```
+
+2. Copier les variables d environnement:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Renseigner `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+
+4. Dans Supabase SQL Editor, executer `supabase/schema.sql`.
+
+5. Lancer l app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## URLs
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Local: [http://localhost:3000](http://localhost:3000)
+- Cible prod: [https://app.digitallbooster.com](https://app.digitallbooster.com)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Arborescence utile
 
-## Learn More
+- `src/app/(auth)`: login/signup
+- `src/app/(app)/app`: dashboard + modules
+- `src/features/*/actions.ts`: server actions par domaine
+- `src/lib/supabase/*`: clients Supabase (browser/server/middleware)
+- `supabase/schema.sql`: schema complet + RLS + policies storage
 
-To learn more about Next.js, take a look at the following resources:
+## Notes de production
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Ajouter les vraies icones PNG PWA (192/512) pour compatibilite maximale.
+- Activer DNS + SSL pour `app.digitallbooster.com`.
+- Optionnel: brancher web push natif pour notifications navigateur.
