@@ -175,7 +175,7 @@ function AdminWidgets({ analytics }: { analytics: AdminAnalytics }) {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ forbidden?: string }>;
+  searchParams: Promise<{ forbidden?: string; debug?: string }>;
 }) {
   const params = await searchParams;
   const user = await getCurrentUser();
@@ -183,6 +183,12 @@ export default async function DashboardPage({
   const role: Role = profile?.role ?? "dev";
   const metricKeys = getRoleMetricKeys(role);
   const isAdmin = role === "admin";
+  const debug = params.debug === "1" || params.debug === "true";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseProjectRef = supabaseUrl.match(/^https:\/\/([^.]+)\.supabase\.co\/?$/)?.[1] ?? "inconnu";
+  const anonKeySet = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const serviceRoleKeySet = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const vercelCommit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
 
   if (isDemoMode) {
     const reportsOpen = mockReports.filter((report) => report.status === "en cours");
@@ -207,6 +213,23 @@ export default async function DashboardPage({
 
     return (
       <div className="space-y-5">
+        {debug ? (
+          <Card className="border-dashed border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+            <h2 className="mb-2 text-base font-semibold">Debug Auth</h2>
+            <div className="space-y-1 text-sm">
+              <p>isDemoMode: {String(isDemoMode)}</p>
+              <p>supabaseProjectRef: {supabaseProjectRef}</p>
+              <p>anonKeySet: {String(anonKeySet)}</p>
+              <p>serviceRoleKeySet: {String(serviceRoleKeySet)}</p>
+              <p>userId: {user.id}</p>
+              <p>userEmail: {(user as unknown as { email?: string }).email ?? "inconnu"}</p>
+              <p>profileId: {profile?.id ?? "null"}</p>
+              <p>profileRole: {profile?.role ?? "null"}</p>
+              <p>profileEmail: {profile?.email ?? "null"}</p>
+              <p>vercelCommit: {vercelCommit ?? "n/a"}</p>
+            </div>
+          </Card>
+        ) : null}
         {params.forbidden ? (
           <Card className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
             Acces refuse a ce module pour votre role.
@@ -328,6 +351,23 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-5">
+      {debug ? (
+        <Card className="border-dashed border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+          <h2 className="mb-2 text-base font-semibold">Debug Auth</h2>
+          <div className="space-y-1 text-sm">
+            <p>isDemoMode: {String(isDemoMode)}</p>
+            <p>supabaseProjectRef: {supabaseProjectRef}</p>
+            <p>anonKeySet: {String(anonKeySet)}</p>
+            <p>serviceRoleKeySet: {String(serviceRoleKeySet)}</p>
+            <p>userId: {user.id}</p>
+            <p>userEmail: {(user as unknown as { email?: string }).email ?? "inconnu"}</p>
+            <p>profileId: {profile?.id ?? "null"}</p>
+            <p>profileRole: {profile?.role ?? "null"}</p>
+            <p>profileEmail: {profile?.email ?? "null"}</p>
+            <p>vercelCommit: {vercelCommit ?? "n/a"}</p>
+          </div>
+        </Card>
+      ) : null}
       {params.forbidden ? (
         <Card className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           Acces refuse a ce module pour votre role.
