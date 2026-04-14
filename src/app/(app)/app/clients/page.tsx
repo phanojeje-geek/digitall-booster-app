@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { getCurrentUser } from "@/lib/auth";
 import { mockClients } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -76,7 +77,11 @@ export default async function ClientsPage({
       </div>
       <Card>
         <h2 className="mb-3 font-semibold">Ajouter un client</h2>
-        <form action={createClientAction} className="grid gap-3 md:grid-cols-3">
+        <ConfirmForm
+          action={createClientAction}
+          confirmMessage="Confirmer l ajout de ce client ?"
+          className="grid gap-3 md:grid-cols-3"
+        >
           <Input name="nom" required placeholder="Nom" />
           <Input name="entreprise" placeholder="Entreprise" />
           <Input name="telephone" placeholder="Telephone" />
@@ -91,7 +96,7 @@ export default async function ClientsPage({
             <option value="client">client</option>
           </select>
           <Button type="submit">Ajouter</Button>
-        </form>
+        </ConfirmForm>
       </Card>
 
       <Card>
@@ -120,12 +125,12 @@ export default async function ClientsPage({
             <p className="text-sm text-zinc-500">{client.entreprise ?? "-"}</p>
             <p className="text-sm">{client.email}</p>
             <p className="mb-2 text-xs uppercase text-zinc-500">{client.statut}</p>
-            <form action={deleteClientAction}>
+            <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
               <input type="hidden" name="id" value={client.id} />
               <Button type="submit" variant="danger" className="w-full">
                 Supprimer
               </Button>
-            </form>
+            </ConfirmForm>
             <Link href={`/app/clients/${client.id}`} className="mt-2 inline-flex w-full">
               <Button type="button" variant="ghost" className="w-full">
                 Dossier client
@@ -163,7 +168,11 @@ export default async function ClientsPage({
                         Dossier
                       </Button>
                     </Link>
-                    <form action={updateClientAction} className="flex gap-2">
+                    <ConfirmForm
+                      action={updateClientAction}
+                      confirmMessage="Confirmer le passage au statut suivant ?"
+                      className="flex gap-2"
+                    >
                       <input type="hidden" name="id" value={client.id} />
                       <input type="hidden" name="nom" value={client.nom} />
                       <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
@@ -177,13 +186,13 @@ export default async function ClientsPage({
                       <Button type="submit" variant="ghost">
                         Avancer
                       </Button>
-                    </form>
-                    <form action={deleteClientAction}>
+                    </ConfirmForm>
+                    <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
                       <input type="hidden" name="id" value={client.id} />
                       <Button type="submit" variant="danger">
                         Supprimer
                       </Button>
-                    </form>
+                    </ConfirmForm>
                   </div>
                 </td>
               </tr>

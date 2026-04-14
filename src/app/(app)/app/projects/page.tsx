@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { getCurrentUser } from "@/lib/auth";
 import { mockClients, mockMembers, mockProjects } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -43,7 +44,11 @@ export default async function ProjectsPage() {
       </div>
       <Card>
         <h2 className="mb-3 font-semibold">Creer un projet</h2>
-        <form action={createProjectAction} className="grid gap-3 md:grid-cols-3">
+        <ConfirmForm
+          action={createProjectAction}
+          confirmMessage="Confirmer la creation de ce projet ?"
+          className="grid gap-3 md:grid-cols-3"
+        >
           <Input name="nom" required placeholder="Nom du projet" />
           <Input name="type" defaultValue="site web" placeholder="Type (seo, ads...)" />
           <select
@@ -81,7 +86,7 @@ export default async function ProjectsPage() {
             ))}
           </select>
           <Button type="submit">Ajouter</Button>
-        </form>
+        </ConfirmForm>
       </Card>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -95,7 +100,7 @@ export default async function ProjectsPage() {
                   <p className="font-medium">{project.nom}</p>
                   <p className="text-xs text-zinc-500">{project.type}</p>
                   <div className="mt-2 flex gap-2">
-                    <form action={updateProjectStatusAction}>
+                    <ConfirmForm action={updateProjectStatusAction} confirmMessage="Confirmer le changement de statut ?">
                       <input type="hidden" name="id" value={project.id} />
                       <input
                         type="hidden"
@@ -105,13 +110,13 @@ export default async function ProjectsPage() {
                       <Button type="submit" variant="ghost">
                         Avancer
                       </Button>
-                    </form>
-                    <form action={deleteProjectAction}>
+                    </ConfirmForm>
+                    <ConfirmForm action={deleteProjectAction} confirmMessage="Confirmer la suppression de ce projet ?">
                       <input type="hidden" name="id" value={project.id} />
                       <Button type="submit" variant="danger">
                         Suppr.
                       </Button>
-                    </form>
+                    </ConfirmForm>
                   </div>
                 </div>
               ))}

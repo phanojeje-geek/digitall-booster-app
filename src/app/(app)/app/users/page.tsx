@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { CommercialGroupsMap } from "@/components/commercial-groups-map";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
@@ -12,10 +13,12 @@ import {
   resetUserAccessAction,
   sendAdminNotificationAction,
   toggleUserBlockAction,
+  updateUserPasswordAction,
   updateCommercialGroupAction,
   updateUserRoleAction,
 } from "@/features/users/actions";
 import type { Role } from "@/lib/types";
+import { KeyRound, Lock, LockOpen } from "lucide-react";
 
 type UserRow = {
   id: string;
@@ -116,7 +119,11 @@ export default async function UsersPage() {
         <p className="text-sm text-zinc-500">
           Creation de comptes reservee aux admins. Mot de passe minimum 8 caracteres.
         </p>
-        <form action={createUserAccountAction} className="grid gap-3 md:grid-cols-2">
+        <ConfirmForm
+          action={createUserAccountAction}
+          confirmMessage="Confirmer la creation de ce compte ?"
+          className="grid gap-3 md:grid-cols-2"
+        >
           <input
             name="full_name"
             required
@@ -142,11 +149,12 @@ export default async function UsersPage() {
             defaultValue="commercial"
             className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
           >
-            {roles.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
+            <option value="admin">admin</option>
+            <option value="commercial">commercial</option>
+            <option value="marketing">community manager (marketing)</option>
+            <option value="marketing">marketing</option>
+            <option value="dev">dev</option>
+            <option value="designer">designer</option>
           </select>
           <select
             name="sales_group"
@@ -162,7 +170,7 @@ export default async function UsersPage() {
               Creer le compte
             </Button>
           </div>
-        </form>
+        </ConfirmForm>
       </Card>
 
       <Card className="space-y-3">
@@ -316,7 +324,11 @@ export default async function UsersPage() {
                 </td>
                 <td>
                   <div className="flex flex-wrap items-center gap-2">
-                    <form action={updateUserRoleAction} className="flex items-center gap-2">
+                    <ConfirmForm
+                      action={updateUserRoleAction}
+                      confirmMessage="Confirmer la modification du role ?"
+                      className="flex items-center gap-2"
+                    >
                       <input type="hidden" name="user_id" value={user.id} />
                       <select
                         name="role"
@@ -332,26 +344,65 @@ export default async function UsersPage() {
                       <Button type="submit" variant="ghost">
                         Sauver
                       </Button>
-                    </form>
-                    <form action={toggleUserBlockAction}>
-                      <input type="hidden" name="user_id" value={user.id} />
-                      <input type="hidden" name="next" value={user.is_blocked ? "false" : "true"} />
-                      <Button type="submit" variant={user.is_blocked ? "secondary" : "danger"}>
-                        {user.is_blocked ? "Debloquer" : "Bloquer"}
-                      </Button>
-                    </form>
-                    <form action={resetUserAccessAction}>
+                    </ConfirmForm>
+
+                    {user.role !== "admin" ? (
+                      <ConfirmForm
+                        action={toggleUserBlockAction}
+                        confirmMessage={user.is_blocked ? "Confirmer le deblocage de ce compte ?" : "Confirmer le blocage de ce compte ?"}
+                      >
+                        <input type="hidden" name="user_id" value={user.id} />
+                        <input type="hidden" name="next" value={user.is_blocked ? "false" : "true"} />
+                        <Button type="submit" variant={user.is_blocked ? "secondary" : "danger"} aria-label={user.is_blocked ? "Debloquer" : "Bloquer"}>
+                          {user.is_blocked ? <LockOpen size={16} /> : <Lock size={16} />}
+                        </Button>
+                      </ConfirmForm>
+                    ) : null}
+
+                    <details className="group">
+                      <summary className="list-none">
+                        <Button type="button" variant="ghost" aria-label="Modifier le mot de passe">
+                          <KeyRound size={16} />
+                        </Button>
+                      </summary>
+                      <div className="mt-2 w-64 rounded-xl border border-zinc-200/80 bg-white/95 p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-950/95">
+                        <ConfirmForm
+                          action={updateUserPasswordAction}
+                          confirmMessage="Confirmer le changement de mot de passe ?"
+                          className="space-y-2"
+                        >
+                          <input type="hidden" name="user_id" value={user.id} />
+                          <input
+                            name="password"
+                            type="password"
+                            required
+                            minLength={8}
+                            placeholder="Nouveau mot de passe (min 8)"
+                            className="h-10 w-full rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+                          />
+                          <Button type="submit" variant="secondary" className="w-full">
+                            Sauver
+                          </Button>
+                        </ConfirmForm>
+                      </div>
+                    </details>
+
+                    <ConfirmForm
+                      action={resetUserAccessAction}
+                      confirmMessage="Confirmer la reinitialisation d acces (blocage + email reset) ?"
+                    >
                       <input type="hidden" name="user_id" value={user.id} />
                       <Button type="submit" variant="ghost">
                         Reset acces
                       </Button>
-                    </form>
-                    <form action={deleteUserAction}>
+                    </ConfirmForm>
+
+                    <ConfirmForm action={deleteUserAction} confirmMessage="Confirmer la suppression definitive de ce compte ?">
                       <input type="hidden" name="user_id" value={user.id} />
                       <Button type="submit" variant="danger">
                         Supprimer
                       </Button>
-                    </form>
+                    </ConfirmForm>
                   </div>
                   {user.access_reset_at ? (
                     <p className="mt-1 text-xs text-zinc-500">

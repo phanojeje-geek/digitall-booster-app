@@ -6,6 +6,7 @@ import { ContrastToggle } from "@/components/contrast-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { Input } from "@/components/ui/input";
 import { roleAccess } from "@/lib/rbac";
 import { isDemoMode } from "@/lib/runtime";
@@ -89,11 +90,11 @@ export function AppShell({
                 <NotificationBell />
                 <ContrastToggle />
                 <ThemeToggle />
-                <form action={signOutAction}>
+                <ConfirmForm action={signOutAction} confirmMessage="Confirmer la deconnexion ?">
                   <Button type="submit" variant="ghost">
                     Deconnexion
                   </Button>
-                </form>
+                </ConfirmForm>
               </div>
             </div>
           </header>

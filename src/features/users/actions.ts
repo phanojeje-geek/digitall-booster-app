@@ -94,8 +94,28 @@ export async function toggleUserBlockAction(formData: FormData) {
 
   if (!isDemoMode) {
     const supabase = await createClient();
+    const { data: target } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if ((target?.role as Role | undefined) === "admin") {
+      return;
+    }
     await supabase.from("profiles").update({ is_blocked: next }).eq("id", userId);
   }
+
+  revalidatePath("/app/users");
+}
+
+export async function updateUserPasswordAction(formData: FormData) {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+  if (isDemoMode) return;
+
+  const userId = String(formData.get("user_id") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (!userId || password.length < 8) return;
+
+  const adminClient = createAdminClient();
+  await adminClient.auth.admin.updateUserById(userId, { password });
+  await adminClient.from("profiles").update({ access_reset_at: new Date().toISOString() }).eq("id", userId);
 
   revalidatePath("/app/users");
 }
