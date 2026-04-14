@@ -6,6 +6,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import {
+  createUserAccountAction,
   createDefaultAdminAccountAction,
   deleteUserAction,
   resetUserAccessAction,
@@ -109,6 +110,60 @@ export default async function UsersPage() {
           </p>
         ) : null}
       </div>
+
+      <Card className="space-y-3">
+        <h2 className="text-lg font-semibold">Creer un utilisateur</h2>
+        <p className="text-sm text-zinc-500">
+          Creation de comptes reservee aux admins. Mot de passe minimum 8 caracteres.
+        </p>
+        <form action={createUserAccountAction} className="grid gap-3 md:grid-cols-2">
+          <input
+            name="full_name"
+            required
+            placeholder="Nom complet"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          />
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="Email"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          />
+          <input
+            name="password"
+            type="password"
+            required
+            placeholder="Mot de passe"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          />
+          <select
+            name="role"
+            defaultValue="commercial"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          >
+            {roles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <select
+            name="sales_group"
+            defaultValue="groupe-a"
+            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
+          >
+            <option value="groupe-a">groupe-a</option>
+            <option value="groupe-b">groupe-b</option>
+            <option value="groupe-c">groupe-c</option>
+          </select>
+          <div className="md:col-span-2">
+            <Button type="submit" variant="secondary">
+              Creer le compte
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">Bootstrap admin</h2>

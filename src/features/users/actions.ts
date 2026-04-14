@@ -11,6 +11,51 @@ import type { Role } from "@/lib/types";
 
 const allowedRoles: Role[] = ["admin", "commercial", "marketing", "dev", "designer"];
 
+export async function createUserAccountAction(formData: FormData) {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+  if (isDemoMode) return;
+
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const role = String(formData.get("role") ?? "dev") as Role;
+  const salesGroup = String(formData.get("sales_group") ?? "groupe-a");
+
+  if (!email || !email.includes("@") || password.length < 8 || !fullName) {
+    return;
+  }
+
+  if (!allowedRoles.includes(role)) {
+    return;
+  }
+
+  try {
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, role },
+    });
+
+    if (error || !data.user?.id) {
+      return;
+    }
+
+    const userId = data.user.id;
+    await adminClient.from("profiles").upsert({
+      id: userId,
+      full_name: fullName,
+      email,
+      role,
+      sales_group: role === "commercial" && ["groupe-a", "groupe-b", "groupe-c"].includes(salesGroup) ? salesGroup : undefined,
+    });
+  } finally {
+    revalidatePath("/app/users");
+  }
+}
+
 export async function updateUserRoleAction(formData: FormData) {
   const currentProfile = await getCurrentProfile();
   if (currentProfile?.role !== "admin") {
