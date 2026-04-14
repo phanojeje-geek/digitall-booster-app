@@ -6,42 +6,13 @@ import { redirect } from "next/navigation";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
-const allowedSignupRoles: Role[] = ["commercial", "marketing", "dev", "designer"];
 
 export async function signUpAction(formData: FormData) {
+  void formData;
   if (isDemoMode) {
-    redirect("/signup?error=Mode%20demo%20desactive%20pour%20les%20comptes%20reels");
+    redirect("/login?error=Inscription%20desactivee");
   }
-
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const fullName = String(formData.get("full_name") ?? "");
-  const inputRole = String(formData.get("role") ?? "dev") as Role;
-  const role = allowedSignupRoles.includes(inputRole) ? inputRole : "dev";
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName, role },
-    },
-  });
-
-  if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
-  }
-
-  if (data.user) {
-    await supabase.from("profiles").upsert({
-      id: data.user.id,
-      full_name: fullName,
-      email,
-      role,
-    });
-  }
-
-  redirect("/app");
+  redirect("/login?error=Inscription%20desactivee.%20Contactez%20un%20administrateur.");
 }
 
 export async function signInAction(formData: FormData) {

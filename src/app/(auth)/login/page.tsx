@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { signInAction } from "@/features/auth/actions";
 import { LoginForm } from "@/components/login-form";
@@ -41,10 +40,7 @@ export default async function LoginPage({
       </div>
 
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        Pas de compte ?{" "}
-        <Link href="/signup" className="font-medium text-indigo-600 hover:underline">
-          Creer un compte
-        </Link>
+        Besoin d un compte ? Contactez un administrateur de votre entreprise.
       </p>
     </div>
   );
