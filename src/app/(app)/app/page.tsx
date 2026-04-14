@@ -3,6 +3,7 @@ import { Activity, BriefcaseBusiness, CheckCircle2, Users } from "lucide-react";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients, mockNotifications, mockProjects, mockReports } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
@@ -189,6 +190,55 @@ export default async function DashboardPage({
   const anonKeySet = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const serviceRoleKeySet = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const vercelCommit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
+  let rlsProfileDebug:
+    | { ok: true; id: string | null; role: string | null; email: string | null }
+    | { ok: false; error: string } = { ok: true, id: null, role: null, email: null };
+  let adminProfileDebug:
+    | { ok: true; id: string | null; role: string | null; email: string | null }
+    | { ok: false; error: string } = { ok: true, id: null, role: null, email: null };
+
+  if (debug && !isDemoMode) {
+    const supabase = await createClient();
+    const { data: rlsData, error: rlsError } = await supabase
+      .from("profiles")
+      .select("id,role,email")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (rlsError) {
+      rlsProfileDebug = { ok: false, error: `${rlsError.code ?? ""} ${rlsError.message}`.trim() };
+    } else {
+      rlsProfileDebug = {
+        ok: true,
+        id: (rlsData?.id as string | null) ?? null,
+        role: (rlsData?.role as string | null) ?? null,
+        email: (rlsData?.email as string | null) ?? null,
+      };
+    }
+
+    try {
+      const admin = createAdminClient();
+      const { data: adminData, error: adminError } = await admin
+        .from("profiles")
+        .select("id,role,email")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (adminError) {
+        adminProfileDebug = { ok: false, error: `${adminError.code ?? ""} ${adminError.message}`.trim() };
+      } else {
+        adminProfileDebug = {
+          ok: true,
+          id: (adminData?.id as string | null) ?? null,
+          role: (adminData?.role as string | null) ?? null,
+          email: (adminData?.email as string | null) ?? null,
+        };
+      }
+    } catch (error) {
+      adminProfileDebug = {
+        ok: false,
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+      };
+    }
+  }
 
   if (isDemoMode) {
     const reportsOpen = mockReports.filter((report) => report.status === "en cours");
@@ -226,6 +276,14 @@ export default async function DashboardPage({
               <p>profileId: {profile?.id ?? "null"}</p>
               <p>profileRole: {profile?.role ?? "null"}</p>
               <p>profileEmail: {profile?.email ?? "null"}</p>
+              <p>rlsProfile: {rlsProfileDebug.ok ? "ok" : "error"}</p>
+              <p>rlsProfileId: {rlsProfileDebug.ok ? rlsProfileDebug.id ?? "null" : "n/a"}</p>
+              <p>rlsProfileRole: {rlsProfileDebug.ok ? rlsProfileDebug.role ?? "null" : "n/a"}</p>
+              <p>rlsProfileError: {rlsProfileDebug.ok ? "null" : rlsProfileDebug.error}</p>
+              <p>adminProfile: {adminProfileDebug.ok ? "ok" : "error"}</p>
+              <p>adminProfileId: {adminProfileDebug.ok ? adminProfileDebug.id ?? "null" : "n/a"}</p>
+              <p>adminProfileRole: {adminProfileDebug.ok ? adminProfileDebug.role ?? "null" : "n/a"}</p>
+              <p>adminProfileError: {adminProfileDebug.ok ? "null" : adminProfileDebug.error}</p>
               <p>vercelCommit: {vercelCommit ?? "n/a"}</p>
             </div>
           </Card>
@@ -364,6 +422,14 @@ export default async function DashboardPage({
             <p>profileId: {profile?.id ?? "null"}</p>
             <p>profileRole: {profile?.role ?? "null"}</p>
             <p>profileEmail: {profile?.email ?? "null"}</p>
+            <p>rlsProfile: {rlsProfileDebug.ok ? "ok" : "error"}</p>
+            <p>rlsProfileId: {rlsProfileDebug.ok ? rlsProfileDebug.id ?? "null" : "n/a"}</p>
+            <p>rlsProfileRole: {rlsProfileDebug.ok ? rlsProfileDebug.role ?? "null" : "n/a"}</p>
+            <p>rlsProfileError: {rlsProfileDebug.ok ? "null" : rlsProfileDebug.error}</p>
+            <p>adminProfile: {adminProfileDebug.ok ? "ok" : "error"}</p>
+            <p>adminProfileId: {adminProfileDebug.ok ? adminProfileDebug.id ?? "null" : "n/a"}</p>
+            <p>adminProfileRole: {adminProfileDebug.ok ? adminProfileDebug.role ?? "null" : "n/a"}</p>
+            <p>adminProfileError: {adminProfileDebug.ok ? "null" : adminProfileDebug.error}</p>
             <p>vercelCommit: {vercelCommit ?? "n/a"}</p>
           </div>
         </Card>
