@@ -110,7 +110,7 @@ create table if not exists public.client_documents (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   client_id uuid not null references public.clients(id) on delete cascade,
-  doc_type text not null check (doc_type in ('cni', 'passeport')),
+  doc_type text not null check (doc_type in ('cni', 'cni_recto', 'cni_verso', 'attestation_recto', 'attestation_verso', 'passeport', 'document')),
   storage_path text not null,
   file_name text not null,
   created_at timestamptz not null default now()

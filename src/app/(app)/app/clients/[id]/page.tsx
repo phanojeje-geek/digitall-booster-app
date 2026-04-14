@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { ClientDocumentsUploader } from "@/components/uploaders";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
-import { saveClientSignatureAction, uploadClientDocumentAction } from "@/features/clients/actions";
+import { saveClientSignatureAction } from "@/features/clients/actions";
 import { SignaturePad } from "@/components/signature-pad";
 
 type Params = Promise<{ id: string }>;
@@ -24,7 +26,14 @@ export default async function ClientOnboardingPage({
   const canEdit = profile?.role === "commercial" || profile?.role === "admin";
 
   let clientData: { id: string; nom: string; entreprise: string | null; telephone: string | null } | null = null;
-  let documents: Array<{ id: string; doc_type: string; file_name: string; storage_path: string; created_at: string }> = [];
+  let documents: Array<{
+    id: string;
+    doc_type: string;
+    file_name: string;
+    storage_path: string;
+    created_at: string;
+    signed_url?: string | null;
+  }> = [];
   let signatures: Array<{ id: string; signature_data_url: string; created_at: string }> = [];
 
   if (!isDemoMode) {
@@ -57,7 +66,14 @@ export default async function ClientOnboardingPage({
         .eq("client_id", id)
         .order("created_at", { ascending: false }),
     ]);
-    documents = docs ?? [];
+    const rawDocs = docs ?? [];
+    const signed = await Promise.all(
+      rawDocs.map(async (doc) => {
+        const { data } = await supabase!.storage.from("client-documents").createSignedUrl(doc.storage_path, 60 * 60);
+        return { ...doc, signed_url: data?.signedUrl ?? null };
+      }),
+    );
+    documents = signed;
     signatures = signs ?? [];
   } else {
     clientData = { id, nom: "Client Demo", entreprise: "Entreprise Demo", telephone: "0600000000" };
@@ -88,32 +104,32 @@ export default async function ClientOnboardingPage({
         <Card>
           <h2 className="mb-3 text-base font-semibold">Documents d identite</h2>
           {canEdit ? (
-            <form action={uploadClientDocumentAction} className="mb-4 grid gap-3">
-              <input type="hidden" name="client_id" value={id} />
-              <select
-                name="doc_type"
-                required
-                className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              >
-                <option value="cni">CNI</option>
-                <option value="passeport">Passeport</option>
-              </select>
-              <input
-                name="file"
-                type="file"
-                required
-                className="h-10 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
-              />
-              <Button type="submit">Uploader</Button>
-            </form>
+            <ClientDocumentsUploader clientId={id} />
           ) : null}
-          <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {documents.length === 0 ? <p className="text-sm text-zinc-500">Aucun document.</p> : null}
-            {documents.map((doc) => (
-              <div key={doc.id} className="rounded-xl bg-zinc-100 p-2 text-sm dark:bg-zinc-800">
-                {doc.doc_type.toUpperCase()} - {doc.file_name}
-              </div>
-            ))}
+            {documents.map((doc) => {
+              const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
+              return (
+                <div key={doc.id} className="space-y-2 rounded-xl bg-zinc-100 p-2 text-sm dark:bg-zinc-800">
+                  {isImage && doc.signed_url ? (
+                    <Image
+                      src={doc.signed_url}
+                      alt={doc.file_name}
+                      width={520}
+                      height={320}
+                      className="h-40 w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-40 items-center justify-center rounded-lg bg-white/60 text-xs text-zinc-500 dark:bg-zinc-900/60">
+                      Apercu indisponible
+                    </div>
+                  )}
+                  <p className="truncate font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
+                  <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
+                </div>
+              );
+            })}
           </div>
         </Card>
 

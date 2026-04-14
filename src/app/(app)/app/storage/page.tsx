@@ -1,31 +1,62 @@
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { getCurrentUser } from "@/lib/auth";
+import { ClientFilesUploader } from "@/components/uploaders";
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients, mockFiles } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
-import { uploadClientFileAction } from "@/features/storage/actions";
+import type { Role } from "@/lib/types";
 
-export default async function StoragePage() {
+export default async function StoragePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ user?: string }>;
+}) {
   const user = await getCurrentUser();
+  const profile = await getCurrentProfile();
+  const role: Role = profile?.role ?? "dev";
+  const isAdmin = role === "admin";
+  const qp = await searchParams;
   let clients = mockClients.map((c) => ({ id: c.id, nom: c.nom }));
   let files = mockFiles;
   let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
+  let signedUrls: Record<string, string> = {};
+  let ownersById: Record<string, { full_name: string | null; role: Role | null }> = {};
 
   if (!isDemoMode) {
     supabase = await createClient();
     const results = await Promise.all([
-      supabase.from("clients").select("id,nom").eq("owner_id", user.id).order("nom"),
+      isAdmin
+        ? supabase.from("clients").select("id,nom").order("nom")
+        : supabase.from("clients").select("id,nom").eq("owner_id", user.id).order("nom"),
       supabase
         .from("files_index")
-        .select("id,file_name,mime_type,storage_path,client_id,created_at")
-        .eq("owner_id", user.id)
+        .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
+        .eq("owner_id", qp.user && isAdmin ? qp.user : user.id)
         .order("created_at", { ascending: false })
         .limit(24),
     ]);
     clients = results[0].data ?? [];
     files = results[1].data ?? [];
+
+    const fileIds = (files ?? []).map((f) => f.storage_path);
+    const urlResults = await Promise.all(
+      fileIds.map(async (path) => {
+        const { data } = await supabase!.storage.from("client-files").createSignedUrl(path, 60 * 60);
+        return { path, url: data?.signedUrl ?? "" };
+      }),
+    );
+    signedUrls = Object.fromEntries(urlResults.filter((x) => x.url).map((x) => [x.path, x.url]));
+
+    if (isAdmin) {
+      const ownerIds = Array.from(new Set((files ?? []).map((f) => (f as { owner_id?: string }).owner_id).filter(Boolean)));
+      if (ownerIds.length) {
+        const { data: owners } = await supabase.from("profiles").select("id,full_name,role").in("id", ownerIds as string[]);
+        ownersById = Object.fromEntries(
+          (owners ?? []).map((o) => [o.id, { full_name: o.full_name ?? null, role: (o.role as Role | null) ?? null }]),
+        );
+      }
+    }
   }
 
   return (
@@ -33,41 +64,20 @@ export default async function StoragePage() {
       <h1 className="text-2xl font-semibold">Fichiers Clients</h1>
       <Card>
         <h2 className="mb-3 font-semibold">Uploader un fichier</h2>
-        <form action={uploadClientFileAction} className="grid gap-3 md:grid-cols-3">
-          <select
-            name="client_id"
-            required
-            className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-          >
-            <option value="">Selectionner un client</option>
-            {(clients ?? []).map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.nom}
-              </option>
-            ))}
-          </select>
-          <input
-            name="file"
-            type="file"
-            required
-            className="h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
-          />
-          <Button type="submit">Upload</Button>
-        </form>
+        <ClientFilesUploader clients={clients ?? []} />
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {(files ?? []).map((file) => {
-          const publicUrl = supabase
-            ? supabase.storage.from("client-files").getPublicUrl(file.storage_path).data.publicUrl
-            : file.storage_path;
+          const signedUrl = supabase ? signedUrls[file.storage_path] ?? "" : file.storage_path;
           const image = file.mime_type?.startsWith("image/");
+          const owner = isAdmin ? ownersById[(file as unknown as { owner_id: string }).owner_id] : null;
 
           return (
             <Card key={file.id} className="space-y-2">
               {image ? (
                 <Image
-                  src={publicUrl}
+                  src={signedUrl}
                   alt={file.file_name}
                   width={400}
                   height={220}
@@ -79,6 +89,11 @@ export default async function StoragePage() {
                 </div>
               )}
               <p className="truncate text-sm font-medium">{file.file_name}</p>
+              {isAdmin && owner ? (
+                <p className="truncate text-xs text-zinc-500">
+                  {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
+                </p>
+              ) : null}
             </Card>
           );
         })}
