@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function createActivityReportAction(formData: FormData) {
@@ -38,7 +39,8 @@ export async function createActivityReportAction(formData: FormData) {
   }
 
   const path = `${user.id}/${projectId}/${Date.now()}-${screenshot.name}`;
-  const { error: uploadError } = await supabase.storage.from("activity-reports").upload(path, screenshot, {
+  const adminClient = createAdminClient();
+  const { error: uploadError } = await adminClient.storage.from("activity-reports").upload(path, screenshot, {
     upsert: false,
   });
 

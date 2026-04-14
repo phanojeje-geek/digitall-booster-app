@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function createClientAction(formData: FormData) {
@@ -97,7 +98,8 @@ export async function uploadClientDocumentAction(formData: FormData) {
   }
 
   const path = `${user.id}/${clientId}/${docType}-${Date.now()}-${file.name}`;
-  const { error: uploadError } = await supabase.storage.from("client-documents").upload(path, file, {
+  const adminClient = createAdminClient();
+  const { error: uploadError } = await adminClient.storage.from("client-documents").upload(path, file, {
     upsert: false,
   });
   if (uploadError) {
