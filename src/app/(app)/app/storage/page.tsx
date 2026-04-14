@@ -4,6 +4,7 @@ import { ClientFilesUploader } from "@/components/uploaders";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients, mockFiles } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
@@ -36,7 +37,6 @@ export default async function StoragePage({
     screenshot_path: string;
     created_at: string;
   }> = [];
-  let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
   let signedClientFiles: Record<string, string> = {};
   let signedClientDocs: Record<string, string> = {};
   let signedActivityReports: Record<string, string> = {};
@@ -44,40 +44,63 @@ export default async function StoragePage({
   let projectsById: Record<string, string> = {};
 
   if (!isDemoMode) {
-    supabase = await createClient();
-    const selectedUserId = qp.user && isAdmin ? qp.user : user.id;
+    const db = isAdmin ? createAdminClient() : await createClient();
+    const selectedUserId = isAdmin ? (qp.user ?? null) : user.id;
     const results = await Promise.all([
       isAdmin
-        ? supabase.from("clients").select("id,nom").order("nom")
-        : supabase.from("clients").select("id,nom").eq("owner_id", user.id).order("nom"),
-      supabase
+        ? db.from("clients").select("id,nom").order("nom")
+        : db.from("clients").select("id,nom").eq("owner_id", user.id).order("nom"),
+      db
         .from("files_index")
         .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
-        .eq("owner_id", selectedUserId)
+        .eq("owner_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
         .limit(24),
-      supabase
+      db
         .from("client_documents")
         .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
-        .eq("owner_id", selectedUserId)
+        .eq("owner_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
         .limit(12),
-      supabase
+      db
         .from("activity_reports")
         .select("id,user_id,project_id,description,screenshot_path,created_at")
-        .eq("user_id", selectedUserId)
+        .eq("user_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
         .limit(12),
     ]);
     clients = results[0].data ?? [];
-    files = results[1].data ?? [];
-    documents = results[2].data ?? [];
-    screenshots = results[3].data ?? [];
+    if (isAdmin && !selectedUserId) {
+      const [allFiles, allDocs, allScreens] = await Promise.all([
+        db
+          .from("files_index")
+          .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
+          .order("created_at", { ascending: false })
+          .limit(24),
+        db
+          .from("client_documents")
+          .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
+          .order("created_at", { ascending: false })
+          .limit(24),
+        db
+          .from("activity_reports")
+          .select("id,user_id,project_id,description,screenshot_path,created_at")
+          .order("created_at", { ascending: false })
+          .limit(24),
+      ]);
+      files = allFiles.data ?? [];
+      documents = allDocs.data ?? [];
+      screenshots = allScreens.data ?? [];
+    } else {
+      files = results[1].data ?? [];
+      documents = results[2].data ?? [];
+      screenshots = results[3].data ?? [];
+    }
 
     const fileIds = (files ?? []).map((f) => f.storage_path);
     const urlResults = await Promise.all(
       fileIds.map(async (path) => {
-        const { data } = await supabase!.storage.from("client-files").createSignedUrl(path, 60 * 60);
+        const { data } = await db.storage.from("client-files").createSignedUrl(path, 60 * 60);
         return { path, url: data?.signedUrl ?? "" };
       }),
     );
@@ -86,7 +109,7 @@ export default async function StoragePage({
     const docPaths = (documents ?? []).map((d) => d.storage_path);
     const docUrlResults = await Promise.all(
       docPaths.map(async (path) => {
-        const { data } = await supabase!.storage.from("client-documents").createSignedUrl(path, 60 * 60);
+        const { data } = await db.storage.from("client-documents").createSignedUrl(path, 60 * 60);
         return { path, url: data?.signedUrl ?? "" };
       }),
     );
@@ -95,7 +118,7 @@ export default async function StoragePage({
     const reportPaths = (screenshots ?? []).map((r) => r.screenshot_path);
     const reportUrlResults = await Promise.all(
       reportPaths.map(async (path) => {
-        const { data } = await supabase!.storage.from("activity-reports").createSignedUrl(path, 60 * 60);
+        const { data } = await db.storage.from("activity-reports").createSignedUrl(path, 60 * 60);
         return { path, url: data?.signedUrl ?? "" };
       }),
     );
@@ -112,7 +135,7 @@ export default async function StoragePage({
         ),
       );
       if (ownerIds.length) {
-        const { data: owners } = await supabase.from("profiles").select("id,full_name,role").in("id", ownerIds as string[]);
+        const { data: owners } = await db.from("profiles").select("id,full_name,role").in("id", ownerIds as string[]);
         ownersById = Object.fromEntries(
           (owners ?? []).map((o) => [o.id, { full_name: o.full_name ?? null, role: (o.role as Role | null) ?? null }]),
         );
@@ -121,7 +144,7 @@ export default async function StoragePage({
 
     const projectIds = Array.from(new Set((screenshots ?? []).map((r) => r.project_id).filter(Boolean)));
     if (projectIds.length) {
-      const { data: projects } = await supabase.from("projects").select("id,nom").in("id", projectIds as string[]);
+      const { data: projects } = await db.from("projects").select("id,nom").in("id", projectIds as string[]);
       projectsById = Object.fromEntries((projects ?? []).map((p) => [p.id, p.nom]));
     }
   }
@@ -138,7 +161,7 @@ export default async function StoragePage({
         <h2 className="text-base font-semibold">Fichiers (client-files)</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {(files ?? []).map((file) => {
-          const signedUrl = supabase ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
+          const signedUrl = !isDemoMode ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
           const image = file.mime_type?.startsWith("image/");
           const owner = isAdmin ? ownersById[(file as unknown as { owner_id: string }).owner_id] : null;
 
@@ -173,7 +196,7 @@ export default async function StoragePage({
         <h2 className="text-base font-semibold">Documents identite (client-documents)</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(documents ?? []).map((doc) => {
-            const signedUrl = supabase ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
+            const signedUrl = !isDemoMode ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
             const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
             const owner = isAdmin ? ownersById[doc.owner_id] : null;
 
@@ -209,7 +232,7 @@ export default async function StoragePage({
         <h2 className="text-base font-semibold">Captures activite (activity-reports)</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(screenshots ?? []).map((item) => {
-            const signedUrl = supabase ? signedActivityReports[item.screenshot_path] ?? "" : item.screenshot_path;
+            const signedUrl = !isDemoMode ? signedActivityReports[item.screenshot_path] ?? "" : item.screenshot_path;
             const owner = isAdmin ? ownersById[item.user_id] : null;
             const projectName = projectsById[item.project_id] ?? item.project_id;
 
