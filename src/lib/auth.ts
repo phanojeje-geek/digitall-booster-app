@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { unstable_noStore as noStore } from "next/cache";
 import { mockProfile } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, Role } from "@/lib/types";
 
 export async function getCurrentUser() {
+  noStore();
+  
   if (isDemoMode) {
     return { id: "demo-user", email: "demo@local.test" };
   }
@@ -23,6 +26,8 @@ export async function getCurrentUser() {
 }
 
 export async function getCurrentProfile() {
+  noStore();
+  
   if (isDemoMode) {
     const cookieStore = await cookies();
     const fromCookie = cookieStore.get("demo_role")?.value as Role | undefined;
