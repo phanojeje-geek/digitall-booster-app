@@ -44,7 +44,7 @@ export async function getCurrentProfile() {
       "id,full_name,email,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
     )
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (data) {
     return data as Profile;
@@ -57,12 +57,15 @@ export async function getCurrentProfile() {
     ((user as unknown as { email?: string }).email ? (user as unknown as { email: string }).email.split("@")[0] : "") ??
     "";
 
-  await supabase.from("profiles").upsert({
-    id: user.id,
-    full_name: fallbackFullName,
-    email: ((user as unknown as { email?: string }).email ?? null) as string | null,
-    role: fallbackRole,
-  });
+  await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      full_name: fallbackFullName,
+      email: ((user as unknown as { email?: string }).email ?? null) as string | null,
+      role: fallbackRole,
+    },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
 
   const { data: repaired } = await supabase
     .from("profiles")
@@ -70,7 +73,7 @@ export async function getCurrentProfile() {
       "id,full_name,email,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
     )
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return (repaired as Profile | null) ?? null;
 }
