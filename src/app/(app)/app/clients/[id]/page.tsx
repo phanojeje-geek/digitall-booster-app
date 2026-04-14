@@ -10,8 +10,15 @@ import { SignaturePad } from "@/components/signature-pad";
 
 type Params = Promise<{ id: string }>;
 
-export default async function ClientOnboardingPage({ params }: { params: Params }) {
+export default async function ClientOnboardingPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Promise<{ upload_error?: string }>;
+}) {
   const { id } = await params;
+  const qp = await searchParams;
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const canEdit = profile?.role === "commercial" || profile?.role === "admin";
@@ -58,6 +65,11 @@ export default async function ClientOnboardingPage({ params }: { params: Params 
 
   return (
     <div className="space-y-5">
+      {qp.upload_error ? (
+        <Card className="border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+          Erreur upload: {qp.upload_error}
+        </Card>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Dossier client</h1>

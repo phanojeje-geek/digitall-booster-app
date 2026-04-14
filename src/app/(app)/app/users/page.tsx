@@ -7,6 +7,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
 import {
+  bootstrapStorageBucketsAction,
   createUserAccountAction,
   createDefaultAdminAccountAction,
   deleteUserAction,
@@ -169,6 +170,18 @@ export default async function UsersPage() {
               Creer le compte
             </Button>
           </div>
+        </ConfirmForm>
+      </Card>
+
+      <Card className="space-y-3">
+        <h2 className="text-lg font-semibold">Storage</h2>
+        <p className="text-sm text-zinc-500">
+          Initialise les buckets requis pour les pieces (client-documents), fichiers (client-files) et captures (activity-reports).
+        </p>
+        <ConfirmForm action={bootstrapStorageBucketsAction} confirmMessage="Confirmer l initialisation des buckets Storage ?">
+          <Button type="submit" variant="secondary">
+            Initialiser Storage
+          </Button>
         </ConfirmForm>
       </Card>
 

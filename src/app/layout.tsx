@@ -38,6 +38,14 @@ export default function RootLayout({
                 try {
                   var theme = localStorage.getItem("theme");
                   var contrast = localStorage.getItem("contrast");
+                  if (!theme) {
+                    var m = document.cookie.match(/(?:^|; )theme=([^;]*)/);
+                    theme = m ? decodeURIComponent(m[1]) : null;
+                  }
+                  if (!contrast) {
+                    var c = document.cookie.match(/(?:^|; )contrast=([^;]*)/);
+                    contrast = c ? decodeURIComponent(c[1]) : null;
+                  }
                   if (theme === "dark") document.documentElement.classList.add("dark");
                   if (contrast === "high") document.documentElement.classList.add("hc");
                 } catch (e) {}

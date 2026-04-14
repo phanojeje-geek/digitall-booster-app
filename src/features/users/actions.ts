@@ -11,6 +11,28 @@ import type { Role } from "@/lib/types";
 
 const allowedRoles: Role[] = ["admin", "commercial", "marketing", "dev", "designer"];
 
+export async function bootstrapStorageBucketsAction() {
+  const currentProfile = await getCurrentProfile();
+  if (currentProfile?.role !== "admin") return;
+  if (isDemoMode) return;
+
+  const adminClient = createAdminClient();
+  const { data: buckets } = await adminClient.storage.listBuckets();
+  const existing = new Set((buckets ?? []).map((b) => b.name));
+
+  const desired = ["client-documents", "client-files", "activity-reports"] as const;
+  for (const name of desired) {
+    if (existing.has(name)) continue;
+    await adminClient.storage.createBucket(name, {
+      public: false,
+      allowedMimeTypes: undefined,
+      fileSizeLimit: undefined,
+    });
+  }
+
+  revalidatePath("/app/users");
+}
+
 export async function createUserAccountAction(formData: FormData) {
   const currentProfile = await getCurrentProfile();
   if (currentProfile?.role !== "admin") return;

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
@@ -99,7 +100,9 @@ export async function uploadClientDocumentAction(formData: FormData) {
   const { error: uploadError } = await supabase.storage.from("client-documents").upload(path, file, {
     upsert: false,
   });
-  if (uploadError) return;
+  if (uploadError) {
+    redirect(`/app/clients/${clientId}?upload_error=${encodeURIComponent(uploadError.message)}`);
+  }
 
   await supabase.from("client_documents").insert({
     owner_id: user.id,
