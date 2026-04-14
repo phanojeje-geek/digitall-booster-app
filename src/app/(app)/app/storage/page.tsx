@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { ClientFilesUploader } from "@/components/uploaders";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -42,6 +43,8 @@ export default async function StoragePage({
   let signedActivityReports: Record<string, string> = {};
   let ownersById: Record<string, { full_name: string | null; role: Role | null }> = {};
   let projectsById: Record<string, string> = {};
+  let clientsById: Record<string, string> = {};
+  let commercialOptions: Array<{ id: string; full_name: string | null }> = [];
 
   if (!isDemoMode) {
     const db = isAdmin ? createAdminClient() : await createClient();
@@ -140,6 +143,13 @@ export default async function StoragePage({
           (owners ?? []).map((o) => [o.id, { full_name: o.full_name ?? null, role: (o.role as Role | null) ?? null }]),
         );
       }
+
+      const { data: commercials } = await db
+        .from("profiles")
+        .select("id,full_name")
+        .eq("role", "commercial")
+        .order("full_name");
+      commercialOptions = (commercials ?? []) as Array<{ id: string; full_name: string | null }>;
     }
 
     const projectIds = Array.from(new Set((screenshots ?? []).map((r) => r.project_id).filter(Boolean)));
@@ -147,11 +157,44 @@ export default async function StoragePage({
       const { data: projects } = await db.from("projects").select("id,nom").in("id", projectIds as string[]);
       projectsById = Object.fromEntries((projects ?? []).map((p) => [p.id, p.nom]));
     }
+
+    clientsById = Object.fromEntries((clients ?? []).map((c) => [c.id, c.nom]));
   }
+
+  const groupKeyForClient = (clientId: string) => clientsById[clientId] ?? clientId;
+  const selectedUserLabel =
+    isAdmin && qp.user ? ownersById[qp.user]?.full_name ?? ownersById[qp.user]?.role ?? qp.user : null;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{isAdmin ? "Archives (preuves)" : "Fichiers Clients"}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">{isAdmin ? "Archives (preuves)" : "Fichiers Clients"}</h1>
+          {isAdmin ? (
+            <p className="text-sm text-zinc-500">
+              {qp.user ? `Filtre commercial: ${selectedUserLabel ?? qp.user}` : "Tous les commerciaux"}
+            </p>
+          ) : null}
+        </div>
+
+        {isAdmin ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/app/storage" className="inline-flex">
+              <span className="rounded-lg border border-zinc-200/80 bg-white/90 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950/85">
+                Tous
+              </span>
+            </Link>
+            {commercialOptions.slice(0, 12).map((c) => (
+              <Link key={c.id} href={`/app/storage?user=${encodeURIComponent(c.id)}`} className="inline-flex">
+                <span className="rounded-lg border border-zinc-200/80 bg-white/90 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950/85">
+                  {c.full_name ?? c.id.slice(0, 8)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       <Card>
         <h2 className="mb-3 font-semibold">Uploader un fichier</h2>
         <ClientFilesUploader clients={clients ?? []} />
@@ -164,6 +207,7 @@ export default async function StoragePage({
           const signedUrl = !isDemoMode ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
           const image = file.mime_type?.startsWith("image/");
           const owner = isAdmin ? ownersById[(file as unknown as { owner_id: string }).owner_id] : null;
+          const clientName = groupKeyForClient((file as unknown as { client_id: string }).client_id);
 
           return (
             <Card key={file.id} className="space-y-2">
@@ -181,6 +225,7 @@ export default async function StoragePage({
                 </div>
               )}
               <p className="truncate text-sm font-medium">{file.file_name}</p>
+              <p className="truncate text-xs text-zinc-500">{clientName}</p>
               {isAdmin && owner ? (
                 <p className="truncate text-xs text-zinc-500">
                   {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
@@ -199,6 +244,7 @@ export default async function StoragePage({
             const signedUrl = !isDemoMode ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
             const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
             const owner = isAdmin ? ownersById[doc.owner_id] : null;
+            const clientName = groupKeyForClient(doc.client_id);
 
             return (
               <Card key={doc.id} className="space-y-2">
@@ -217,6 +263,7 @@ export default async function StoragePage({
                 )}
                 <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
                 <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
+                <p className="truncate text-xs text-zinc-500">{clientName}</p>
                 {isAdmin && owner ? (
                   <p className="truncate text-xs text-zinc-500">
                     {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
