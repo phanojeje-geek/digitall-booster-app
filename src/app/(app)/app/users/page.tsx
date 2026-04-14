@@ -151,8 +151,7 @@ export default async function UsersPage() {
           >
             <option value="admin">admin</option>
             <option value="commercial">commercial</option>
-            <option value="marketing">community manager (marketing)</option>
-            <option value="marketing">marketing</option>
+            <option value="marketing">marketing / community manager</option>
             <option value="dev">dev</option>
             <option value="designer">designer</option>
           </select>
