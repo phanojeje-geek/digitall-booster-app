@@ -22,6 +22,8 @@ type ReportRow = {
 };
 
 export default async function ActivityPage() {
+  const LIMIT_REPORTS = 12;
+
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
@@ -57,11 +59,13 @@ export default async function ActivityPage() {
           .from("activity_reports")
           .select("id,project_id,user_id,description,screenshot_path,status,created_at")
           .order("created_at", { ascending: false })
+          .limit(LIMIT_REPORTS)
       : supabase
           .from("activity_reports")
           .select("id,project_id,user_id,description,screenshot_path,status,created_at")
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(LIMIT_REPORTS);
 
     const [{ data: projectsData }, { data: reportsData }] = await Promise.all([projectsQuery, reportsQuery]);
     projects = (projectsData ?? []) as ProjectRow[];

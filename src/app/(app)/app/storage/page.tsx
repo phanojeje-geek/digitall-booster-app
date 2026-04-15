@@ -14,6 +14,10 @@ export default async function StoragePage({
 }: {
   searchParams: Promise<{ user?: string }>;
 }) {
+  const LIMIT_FILES = 12;
+  const LIMIT_DOCS = 12;
+  const LIMIT_SCREENS = 12;
+
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const role: Role = profile?.role ?? "dev";
@@ -58,19 +62,19 @@ export default async function StoragePage({
         .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
         .eq("owner_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
-        .limit(24),
+        .limit(LIMIT_FILES),
       db
         .from("client_documents")
         .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
         .eq("owner_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
-        .limit(12),
+        .limit(LIMIT_DOCS),
       db
         .from("activity_reports")
         .select("id,user_id,project_id,description,screenshot_path,created_at")
         .eq("user_id", selectedUserId ?? "")
         .order("created_at", { ascending: false })
-        .limit(12),
+        .limit(LIMIT_SCREENS),
     ]);
     clients = results[0].data ?? [];
     if (isAdmin && !selectedUserId) {
@@ -79,17 +83,17 @@ export default async function StoragePage({
           .from("files_index")
           .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
           .order("created_at", { ascending: false })
-          .limit(24),
+          .limit(LIMIT_FILES),
         db
           .from("client_documents")
           .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
           .order("created_at", { ascending: false })
-          .limit(24),
+          .limit(LIMIT_DOCS),
         db
           .from("activity_reports")
           .select("id,user_id,project_id,description,screenshot_path,created_at")
           .order("created_at", { ascending: false })
-          .limit(24),
+          .limit(LIMIT_SCREENS),
       ]);
       files = allFiles.data ?? [];
       documents = allDocs.data ?? [];
