@@ -12,6 +12,36 @@ import { SignaturePad } from "@/components/signature-pad";
 
 type Params = Promise<{ id: string }>;
 
+type IntakeData = {
+  company?: {
+    name?: string;
+    sector?: string;
+    legal_form?: string;
+    address?: string;
+    city?: string;
+    country?: string;
+  };
+  contact?: {
+    name?: string;
+    position?: string;
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+  };
+  digital_presence?: {
+    facebook?: string;
+    instagram?: string;
+    website?: string;
+    other_platforms?: string;
+  };
+  objectives?: string[];
+  subscription_plan?: string;
+  objectives_other?: string;
+  activity_description?: string;
+  responsible_name?: string;
+  signed_at?: string;
+};
+
 export default async function ClientOnboardingPage({
   params,
   searchParams,
@@ -26,6 +56,7 @@ export default async function ClientOnboardingPage({
   const canEdit = profile?.role === "commercial" || profile?.role === "admin";
 
   let clientData: { id: string; nom: string; entreprise: string | null; telephone: string | null } | null = null;
+  let intake: IntakeData | null = null;
   let documents: Array<{
     id: string;
     doc_type: string;
@@ -40,7 +71,7 @@ export default async function ClientOnboardingPage({
     const supabase = await createClient();
     const query = supabase
       .from("clients")
-      .select("id,nom,entreprise,telephone,owner_id")
+      .select("id,nom,entreprise,telephone,owner_id,intake_data")
       .eq("id", id)
       .single();
     const { data: rawClient } = await query;
@@ -53,6 +84,7 @@ export default async function ClientOnboardingPage({
       entreprise: rawClient.entreprise,
       telephone: rawClient.telephone,
     };
+    intake = (rawClient as unknown as { intake_data?: IntakeData | null }).intake_data ?? null;
 
     const [{ data: docs }, { data: signs }] = await Promise.all([
       supabase
@@ -101,6 +133,22 @@ export default async function ClientOnboardingPage({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {intake ? (
+          <Card>
+            <h2 className="mb-3 text-base font-semibold">Fiche inscription</h2>
+            <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+              <p className="font-medium">Entreprise</p>
+              <p>{intake.company?.name ?? clientData?.entreprise ?? "-"}</p>
+              <p className="font-medium">Contact</p>
+              <p>{intake.contact?.name ?? clientData?.nom ?? "-"}</p>
+              <p className="text-xs text-zinc-500">{intake.contact?.position ?? "-"}</p>
+              <p className="font-medium">Objectifs</p>
+              <p>{Array.isArray(intake.objectives) && intake.objectives.length ? intake.objectives.join(", ") : "-"}</p>
+              <p className="font-medium">Abonnement</p>
+              <p>{intake.subscription_plan ?? "-"}</p>
+            </div>
+          </Card>
+        ) : null}
         <Card>
           <h2 className="mb-3 text-base font-semibold">Documents d identite</h2>
           {canEdit ? (

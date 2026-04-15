@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
@@ -25,6 +25,8 @@ export default async function ClientsPage({
   searchParams: Promise<{ q?: string; statut?: string }>;
 }) {
   const user = await getCurrentUser();
+  const profile = await getCurrentProfile();
+  const isCommercial = profile?.role === "commercial";
   const params = await searchParams;
   let clients: ClientListRow[] = mockClients.map((client) => ({
     id: client.id,
@@ -76,16 +78,104 @@ export default async function ClientsPage({
         <p className="text-sm text-zinc-500">Pilotez prospects et clients dans une vue unifiee.</p>
       </div>
       <Card>
-        <h2 className="mb-3 font-semibold">Ajouter un client</h2>
+        <h2 className="mb-3 font-semibold">{isCommercial ? "Fiche d inscription premium" : "Ajouter un client"}</h2>
         <ConfirmForm
           action={createClientAction}
           confirmMessage="Confirmer l ajout de ce client ?"
           className="grid gap-3 md:grid-cols-3"
         >
-          <Input name="nom" required placeholder="Nom" />
-          <Input name="entreprise" placeholder="Entreprise" />
-          <Input name="telephone" placeholder="Telephone" />
-          <Input name="email" type="email" required placeholder="Email" />
+          {isCommercial ? (
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Informations sur l entreprise</p>
+            </div>
+          ) : null}
+          <Input name="entreprise" placeholder={isCommercial ? "Nom de l entreprise" : "Entreprise"} />
+          {isCommercial ? (
+            <>
+              <Input name="company_sector" placeholder="Secteur d activite" />
+              <Input name="company_legal_form" placeholder="Forme juridique" />
+              <Input name="company_address" placeholder="Adresse" />
+              <Input name="company_city" placeholder="Ville" />
+              <Input name="company_country" placeholder="Pays" />
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Contact principal</p>
+              </div>
+              <Input name="nom" required placeholder="Nom & Prenoms" />
+              <Input name="contact_position" placeholder="Fonction" />
+              <Input name="telephone" placeholder="Telephone" />
+              <Input name="contact_whatsapp" placeholder="WhatsApp" />
+              <Input name="email" type="email" required placeholder="Email" />
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Presence digitale</p>
+              </div>
+              <Input name="facebook" placeholder="Page Facebook" />
+              <Input name="instagram" placeholder="Compte Instagram" />
+              <Input name="website" placeholder="Site Web" />
+              <Input name="other_platforms" placeholder="Autres plateformes" className="md:col-span-3" />
+
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Objectifs de l entreprise</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="objectives" value="Augmenter la visibilite" />
+                    Augmenter la visibilite
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="objectives" value="Attirer plus de clients" />
+                    Attirer plus de clients
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="objectives" value="Ameliorer l image de marque" />
+                    Ameliorer l image de marque
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="objectives" value="Booster les ventes" />
+                    Booster les ventes
+                  </label>
+                </div>
+                <input
+                  name="objectives_other"
+                  placeholder="Autres..."
+                  className="mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Choix de l abonnement</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="subscription_plan" value="6_mois_3000_fcfa" required />
+                    Formule 6 mois - 3000 FCFA
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="subscription_plan" value="12_mois_5000_fcfa" required />
+                    Formule 12 mois - 5000 FCFA
+                  </label>
+                </div>
+              </div>
+
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Description de votre activite</p>
+                <textarea
+                  name="activity_description"
+                  rows={4}
+                  className="mt-2 w-full rounded-md border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <p className="text-sm font-semibold">Validation</p>
+              </div>
+              <Input name="responsible_name" placeholder="Nom du responsable" />
+              <Input name="signed_at" placeholder="Date (ex: 2026-04-15)" />
+            </>
+          ) : (
+            <>
+              <Input name="nom" required placeholder="Nom" />
+              <Input name="telephone" placeholder="Telephone" />
+              <Input name="email" type="email" required placeholder="Email" />
+            </>
+          )}
           <select
             name="statut"
             defaultValue="prospect"

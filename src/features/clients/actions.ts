@@ -15,7 +15,43 @@ export async function createClientAction(formData: FormData) {
   }
 
   const user = await getCurrentUser();
+  const profile = await getCurrentProfile();
   const supabase = await createClient();
+
+  const objectives = formData.getAll("objectives").map((v) => String(v)).filter(Boolean);
+  const subscriptionPlan = String(formData.get("subscription_plan") ?? "");
+  const intakeData =
+    profile?.role === "commercial"
+      ? {
+          company: {
+            name: String(formData.get("entreprise") ?? ""),
+            sector: String(formData.get("company_sector") ?? ""),
+            legal_form: String(formData.get("company_legal_form") ?? ""),
+            address: String(formData.get("company_address") ?? ""),
+            city: String(formData.get("company_city") ?? ""),
+            country: String(formData.get("company_country") ?? ""),
+          },
+          contact: {
+            name: String(formData.get("nom") ?? ""),
+            position: String(formData.get("contact_position") ?? ""),
+            phone: String(formData.get("telephone") ?? ""),
+            whatsapp: String(formData.get("contact_whatsapp") ?? ""),
+            email: String(formData.get("email") ?? ""),
+          },
+          digital_presence: {
+            facebook: String(formData.get("facebook") ?? ""),
+            instagram: String(formData.get("instagram") ?? ""),
+            website: String(formData.get("website") ?? ""),
+            other_platforms: String(formData.get("other_platforms") ?? ""),
+          },
+          objectives,
+          subscription_plan: subscriptionPlan,
+          objectives_other: String(formData.get("objectives_other") ?? ""),
+          activity_description: String(formData.get("activity_description") ?? ""),
+          responsible_name: String(formData.get("responsible_name") ?? ""),
+          signed_at: String(formData.get("signed_at") ?? ""),
+        }
+      : {};
 
   const payload = {
     nom: String(formData.get("nom") ?? ""),
@@ -23,6 +59,7 @@ export async function createClientAction(formData: FormData) {
     telephone: String(formData.get("telephone") ?? "") || null,
     email: String(formData.get("email") ?? ""),
     statut: String(formData.get("statut") ?? "prospect"),
+    intake_data: intakeData,
     owner_id: user.id,
   };
 

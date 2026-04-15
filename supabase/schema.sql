@@ -57,8 +57,11 @@ create table if not exists public.clients (
   telephone text,
   email text not null,
   statut text not null default 'prospect' check (statut in ('prospect', 'en cours', 'client')),
+  intake_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+
+alter table public.clients add column if not exists intake_data jsonb not null default '{}'::jsonb;
 
 -- Projects
 create table if not exists public.projects (
