@@ -12,11 +12,11 @@ export default async function LoginPage({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <p className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300">
+        <p className="inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white">
           Digital Booster Secure Access
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Connexion</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Connexion</h1>
+        <p className="text-sm text-white/85">
           Connectez-vous pour acceder au suivi d activite, aux projets et au dashboard selon votre role.
         </p>
       </div>

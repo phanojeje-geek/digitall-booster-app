@@ -1,5 +1,5 @@
-const CACHE_NAME = "digital-booster-v1";
-const STATIC_ASSETS = ["/app", "/login", "/manifest.json"];
+const CACHE_NAME = "digital-booster-v2";
+const STATIC_ASSETS = ["/", "/login", "/manifest.json", "/icons/icon-192.svg", "/icons/icon-512.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -7,6 +7,7 @@ self.addEventListener("install", (event) => {
       return cache.addAll(STATIC_ASSETS);
     }),
   );
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -15,10 +16,16 @@ self.addEventListener("activate", (event) => {
       Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
     ),
   );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  if (event.request.mode === "navigate") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -28,7 +35,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match("/app"));
+        .catch(() => undefined);
     }),
   );
 });
