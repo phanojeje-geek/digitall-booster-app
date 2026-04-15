@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
-        <div className="max-h-[88vh] overflow-auto p-5 text-zinc-900 sm:p-7 lg:p-8 dark:text-zinc-100">
+        <div className="max-h-[88vh] overflow-auto p-5 text-zinc-100 sm:p-7 lg:p-8 [&_h1]:text-white [&_p]:text-white/90">
           {children}
         </div>
       </div>
