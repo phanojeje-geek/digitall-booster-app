@@ -4,6 +4,7 @@ import { AdminLiveFeed } from "@/components/admin-live-feed";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
+import type { Role } from "@/lib/types";
 
 export default async function LivePage() {
   const profile = await getCurrentProfile();
@@ -13,6 +14,7 @@ export default async function LivePage() {
 
   let initialConnections: Array<{ id: string; user_id: string; status: string; login_at: string }> = [];
   let initialReports: Array<{ id: string; user_id: string; description: string; created_at: string }> = [];
+  let initialUsers: Array<{ id: string; full_name: string | null; role: Role }> = [];
 
   if (!isDemoMode) {
     const supabase = await createClient();
@@ -26,6 +28,14 @@ export default async function LivePage() {
     ]);
     initialConnections = (c ?? []) as Array<{ id: string; user_id: string; status: string; login_at: string }>;
     initialReports = (r ?? []) as Array<{ id: string; user_id: string; description: string; created_at: string }>;
+
+    const ids = Array.from(
+      new Set([...initialConnections.map((x) => x.user_id), ...initialReports.map((x) => x.user_id)].filter(Boolean)),
+    );
+    if (ids.length) {
+      const { data: users } = await supabase.from("profiles").select("id,full_name,role").in("id", ids);
+      initialUsers = (users ?? []) as Array<{ id: string; full_name: string | null; role: Role }>;
+    }
   }
 
   return (
@@ -40,7 +50,7 @@ export default async function LivePage() {
         {isDemoMode ? (
           <p className="text-sm text-zinc-500">Disponible en mode connecte Supabase.</p>
         ) : (
-          <AdminLiveFeed initialConnections={initialConnections} initialReports={initialReports} />
+          <AdminLiveFeed initialConnections={initialConnections} initialReports={initialReports} initialUsers={initialUsers} />
         )}
       </Card>
     </div>
