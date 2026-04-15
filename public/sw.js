@@ -1,5 +1,13 @@
-const CACHE_NAME = "digital-booster-v2";
-const STATIC_ASSETS = ["/", "/login", "/manifest.json", "/icons/icon-192.svg", "/icons/icon-512.svg"];
+const CACHE_NAME = "digital-booster-v3";
+const STATIC_ASSETS = [
+  "/",
+  "/login",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-192.svg",
+  "/icons/icon-512.svg",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
