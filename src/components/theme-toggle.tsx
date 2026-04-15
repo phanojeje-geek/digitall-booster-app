@@ -54,7 +54,7 @@ export function ThemeToggle() {
   };
 
   return (
-    <Button variant="ghost" onClick={toggle} aria-label="Basculer le theme">
+    <Button type="button" variant="ghost" onClick={toggle} aria-label="Basculer le theme">
       {dark ? <Sun size={16} /> : <Moon size={16} />}
     </Button>
   );

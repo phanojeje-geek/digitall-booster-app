@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import { ClientDocumentsUploader } from "@/components/uploaders";
+import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
@@ -161,12 +161,12 @@ export default async function ClientOnboardingPage({
               return (
                 <div key={doc.id} className="space-y-2 rounded-xl bg-zinc-100 p-2 text-sm dark:bg-zinc-800">
                   {isImage && doc.signed_url ? (
-                    <Image
+                    <ImageViewer
                       src={doc.signed_url}
                       alt={doc.file_name}
-                      width={520}
-                      height={320}
-                      className="h-40 w-full rounded-lg object-cover"
+                      width={900}
+                      height={600}
+                      className="h-40 w-full overflow-hidden rounded-lg"
                     />
                   ) : (
                     <div className="flex h-40 items-center justify-center rounded-lg bg-white/60 text-xs text-zinc-500 dark:bg-zinc-900/60">
@@ -194,8 +194,13 @@ export default async function ClientOnboardingPage({
             {signatures.length === 0 ? <p className="text-sm text-zinc-500">Aucune signature.</p> : null}
             {signatures.slice(0, 3).map((sig) => (
               <div key={sig.id} className="rounded-xl bg-zinc-100 p-2 dark:bg-zinc-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={sig.signature_data_url} alt="Signature client" className="h-20 w-full object-contain" />
+                <ImageViewer
+                  src={sig.signature_data_url}
+                  alt="Signature client"
+                  width={900}
+                  height={300}
+                  className="h-20 w-full overflow-hidden rounded-lg bg-white/40 dark:bg-zinc-900/40"
+                />
               </div>
             ))}
           </div>

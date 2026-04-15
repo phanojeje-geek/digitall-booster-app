@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { ClientFilesUploader } from "@/components/uploaders";
+import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients, mockFiles } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -212,12 +212,12 @@ export default async function StoragePage({
           return (
             <Card key={file.id} className="space-y-2">
               {image ? (
-                <Image
+                <ImageViewer
                   src={signedUrl}
                   alt={file.file_name}
-                  width={400}
-                  height={220}
-                  className="h-36 w-full rounded-md object-cover"
+                  width={520}
+                  height={320}
+                  className="h-36 w-full overflow-hidden rounded-md"
                 />
               ) : (
                 <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
@@ -249,12 +249,12 @@ export default async function StoragePage({
             return (
               <Card key={doc.id} className="space-y-2">
                 {isImage && signedUrl ? (
-                  <Image
+                  <ImageViewer
                     src={signedUrl}
                     alt={doc.file_name}
-                    width={400}
-                    height={220}
-                    className="h-36 w-full rounded-md object-cover"
+                    width={520}
+                    height={320}
+                    className="h-36 w-full overflow-hidden rounded-md"
                   />
                 ) : (
                   <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
@@ -286,12 +286,12 @@ export default async function StoragePage({
             return (
               <Card key={item.id} className="space-y-2">
                 {signedUrl ? (
-                  <Image
+                  <ImageViewer
                     src={signedUrl}
                     alt={item.description}
-                    width={400}
-                    height={220}
-                    className="h-36 w-full rounded-md object-cover"
+                    width={520}
+                    height={320}
+                    className="h-36 w-full overflow-hidden rounded-md"
                   />
                 ) : (
                   <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
