@@ -16,6 +16,7 @@ type ClientListRow = {
   telephone: string | null;
   email: string;
   statut: string;
+  owner_id?: string;
   created_at: string;
 };
 
@@ -27,6 +28,7 @@ export default async function ClientsPage({
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const isCommercial = profile?.role === "commercial";
+  const isAdmin = profile?.role === "admin";
   const params = await searchParams;
   let clients: ClientListRow[] = mockClients.map((client) => ({
     id: client.id,
@@ -56,9 +58,12 @@ export default async function ClientsPage({
 
     let query = supabase
       .from("clients")
-      .select("id,nom,entreprise,telephone,email,statut,created_at")
-      .eq("owner_id", user.id)
+      .select("id,nom,entreprise,telephone,email,statut,created_at,owner_id")
       .order("created_at", { ascending: false });
+
+    if (!isAdmin) {
+      query = query.eq("owner_id", user.id);
+    }
 
     if (params.q) {
       query = query.or(`nom.ilike.%${params.q}%,entreprise.ilike.%${params.q}%,email.ilike.%${params.q}%`);
@@ -77,117 +82,109 @@ export default async function ClientsPage({
         <h1 className="text-3xl font-semibold tracking-tight">CRM Clients</h1>
         <p className="text-sm text-zinc-500">Pilotez prospects et clients dans une vue unifiee.</p>
       </div>
-      <Card>
-        <h2 className="mb-3 font-semibold">{isCommercial ? "Fiche d inscription premium" : "Ajouter un client"}</h2>
-        <ConfirmForm
-          action={createClientAction}
-          confirmMessage="Confirmer l ajout de ce client ?"
-          className="grid gap-3 md:grid-cols-3"
-        >
-          {isCommercial ? (
+      {isCommercial ? (
+        <Card>
+          <h2 className="mb-3 font-semibold">Fiche d inscription premium</h2>
+          <ConfirmForm
+            action={createClientAction}
+            confirmMessage="Confirmer l ajout de ce client ?"
+            className="grid gap-3 md:grid-cols-3"
+          >
+            <input type="hidden" name="statut" value="prospect" />
             <div className="md:col-span-3">
               <p className="text-sm font-semibold">Informations sur l entreprise</p>
             </div>
-          ) : null}
-          <Input name="entreprise" placeholder={isCommercial ? "Nom de l entreprise" : "Entreprise"} />
-          {isCommercial ? (
-            <>
-              <Input name="company_sector" placeholder="Secteur d activite" />
-              <Input name="company_legal_form" placeholder="Forme juridique" />
-              <Input name="company_address" placeholder="Adresse" />
-              <Input name="company_city" placeholder="Ville" />
-              <Input name="company_country" placeholder="Pays" />
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Contact principal</p>
-              </div>
-              <Input name="nom" required placeholder="Nom & Prenoms" />
-              <Input name="contact_position" placeholder="Fonction" />
-              <Input name="telephone" placeholder="Telephone" />
-              <Input name="contact_whatsapp" placeholder="WhatsApp" />
-              <Input name="email" type="email" required placeholder="Email" />
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Presence digitale</p>
-              </div>
-              <Input name="facebook" placeholder="Page Facebook" />
-              <Input name="instagram" placeholder="Compte Instagram" />
-              <Input name="website" placeholder="Site Web" />
-              <Input name="other_platforms" placeholder="Autres plateformes" className="md:col-span-3" />
+            <Input name="entreprise" placeholder="Nom de l entreprise" />
+            <Input name="company_sector" placeholder="Secteur d activite" />
+            <Input name="company_legal_form" placeholder="Forme juridique" />
+            <Input name="company_address" placeholder="Adresse" />
+            <Input name="company_city" placeholder="Ville" />
+            <Input name="company_country" placeholder="Pays" />
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Contact principal</p>
+            </div>
+            <Input name="nom" required placeholder="Nom & Prenoms" />
+            <Input name="contact_position" placeholder="Fonction" />
+            <Input name="telephone" placeholder="Telephone" />
+            <Input name="contact_whatsapp" placeholder="WhatsApp" />
+            <Input name="email" type="email" required placeholder="Email" />
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Presence digitale</p>
+            </div>
+            <Input name="facebook" placeholder="Page Facebook" />
+            <Input name="instagram" placeholder="Compte Instagram" />
+            <Input name="website" placeholder="Site Web" />
+            <Input name="other_platforms" placeholder="Autres plateformes" className="md:col-span-3" />
 
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Objectifs de l entreprise</p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="objectives" value="Augmenter la visibilite" />
-                    Augmenter la visibilite
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="objectives" value="Attirer plus de clients" />
-                    Attirer plus de clients
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="objectives" value="Ameliorer l image de marque" />
-                    Ameliorer l image de marque
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="objectives" value="Booster les ventes" />
-                    Booster les ventes
-                  </label>
-                </div>
-                <input
-                  name="objectives_other"
-                  placeholder="Autres..."
-                  className="mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-                />
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Objectifs de l entreprise</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="objectives" value="Augmenter la visibilite" />
+                  Augmenter la visibilite
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="objectives" value="Attirer plus de clients" />
+                  Attirer plus de clients
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="objectives" value="Ameliorer l image de marque" />
+                  Ameliorer l image de marque
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="objectives" value="Booster les ventes" />
+                  Booster les ventes
+                </label>
               </div>
+              <input
+                name="objectives_other"
+                placeholder="Autres..."
+                className="mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+              />
+            </div>
 
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Choix de l abonnement</p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="radio" name="subscription_plan" value="6_mois_3000_fcfa" required />
-                    Formule 6 mois - 3000 FCFA
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="radio" name="subscription_plan" value="12_mois_5000_fcfa" required />
-                    Formule 12 mois - 5000 FCFA
-                  </label>
-                </div>
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Choix de l abonnement</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="subscription_plan" value="6_mois_3000_fcfa" required />
+                  Formule 6 mois - 3000 FCFA
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="subscription_plan" value="12_mois_5000_fcfa" required />
+                  Formule 12 mois - 5000 FCFA
+                </label>
               </div>
+            </div>
 
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Description de votre activite</p>
-                <textarea
-                  name="activity_description"
-                  rows={4}
-                  className="mt-2 w-full rounded-md border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-                />
-              </div>
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Description de votre activite</p>
+              <textarea
+                name="activity_description"
+                rows={4}
+                className="mt-2 w-full rounded-md border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+              />
+            </div>
 
-              <div className="md:col-span-3">
-                <p className="text-sm font-semibold">Validation</p>
-              </div>
-              <Input name="responsible_name" placeholder="Nom du responsable" />
-              <Input name="signed_at" placeholder="Date (ex: 2026-04-15)" />
-            </>
-          ) : (
-            <>
-              <Input name="nom" required placeholder="Nom" />
-              <Input name="telephone" placeholder="Telephone" />
-              <Input name="email" type="email" required placeholder="Email" />
-            </>
-          )}
-          <select
-            name="statut"
-            defaultValue="prospect"
-            className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-          >
-            <option value="prospect">prospect</option>
-            <option value="en cours">en cours</option>
-            <option value="client">client</option>
-          </select>
-          <Button type="submit">Ajouter</Button>
-        </ConfirmForm>
-      </Card>
+            <div className="md:col-span-3">
+              <p className="text-sm font-semibold">Validation</p>
+            </div>
+            <Input name="responsible_name" placeholder="Nom du responsable" />
+            <Input name="signed_at" placeholder="Date (ex: 2026-04-15)" />
+
+            <div className="md:col-span-3">
+              <Button type="submit">Enregistrer (Prospect)</Button>
+            </div>
+          </ConfirmForm>
+        </Card>
+      ) : (
+        <Card>
+          <h2 className="mb-3 font-semibold">Enregistrement client</h2>
+          <p className="text-sm text-zinc-500">
+            Seuls les commerciaux peuvent enregistrer de nouveaux clients. Les admins consultent les dossiers et les preuves.
+          </p>
+        </Card>
+      )}
 
       <Card>
         <form className="grid gap-3 md:grid-cols-3">
@@ -238,6 +235,7 @@ export default async function ClientsPage({
               <th>Entreprise</th>
               <th>Email</th>
               <th>Statut</th>
+              {isAdmin ? <th>Commercial</th> : null}
               <th className="w-48">Actions</th>
             </tr>
           </thead>
@@ -251,6 +249,7 @@ export default async function ClientsPage({
                 <td>{client.entreprise}</td>
                 <td>{client.email}</td>
                 <td>{client.statut}</td>
+                {isAdmin ? <td className="text-xs text-zinc-500">{client.owner_id?.slice(0, 8) ?? "-"}</td> : null}
                 <td>
                   <div className="flex gap-2">
                     <Link href={`/app/clients/${client.id}`}>

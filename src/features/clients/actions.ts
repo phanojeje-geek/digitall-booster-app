@@ -16,6 +16,9 @@ export async function createClientAction(formData: FormData) {
 
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "commercial") {
+    return;
+  }
   const supabase = await createClient();
 
   const objectives = formData.getAll("objectives").map((v) => String(v)).filter(Boolean);
@@ -79,10 +82,11 @@ export async function updateClientAction(formData: FormData) {
   }
 
   const user = await getCurrentUser();
+  const profile = await getCurrentProfile();
   const supabase = await createClient();
   const id = String(formData.get("id"));
 
-  await supabase
+  const updateQuery = supabase
     .from("clients")
     .update({
       nom: String(formData.get("nom") ?? ""),
@@ -91,8 +95,12 @@ export async function updateClientAction(formData: FormData) {
       email: String(formData.get("email") ?? ""),
       statut: String(formData.get("statut") ?? "prospect"),
     })
-    .eq("id", id)
-    .eq("owner_id", user.id);
+    .eq("id", id);
+
+  if (profile?.role !== "admin") {
+    updateQuery.eq("owner_id", user.id);
+  }
+  await updateQuery;
 
   revalidatePath("/app/clients");
 }
@@ -105,10 +113,15 @@ export async function deleteClientAction(formData: FormData) {
   }
 
   const user = await getCurrentUser();
+  const profile = await getCurrentProfile();
   const supabase = await createClient();
   const id = String(formData.get("id"));
 
-  await supabase.from("clients").delete().eq("id", id).eq("owner_id", user.id);
+  const deleteQuery = supabase.from("clients").delete().eq("id", id);
+  if (profile?.role !== "admin") {
+    deleteQuery.eq("owner_id", user.id);
+  }
+  await deleteQuery;
   revalidatePath("/app/clients");
   revalidatePath("/app");
 }
