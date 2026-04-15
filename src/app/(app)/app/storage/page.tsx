@@ -44,7 +44,7 @@ export default async function StoragePage({
   let ownersById: Record<string, { full_name: string | null; role: Role | null }> = {};
   let projectsById: Record<string, string> = {};
   let clientsById: Record<string, string> = {};
-  let commercialOptions: Array<{ id: string; full_name: string | null }> = [];
+  let userOptions: Array<{ id: string; full_name: string | null; role: Role }> = [];
 
   if (!isDemoMode) {
     const db = isAdmin ? createAdminClient() : await createClient();
@@ -144,12 +144,13 @@ export default async function StoragePage({
         );
       }
 
-      const { data: commercials } = await db
+      const { data: archiveUsers } = await db
         .from("profiles")
-        .select("id,full_name")
-        .eq("role", "commercial")
+        .select("id,full_name,role")
+        .in("role", ["commercial", "marketing", "dev", "designer"])
+        .order("role")
         .order("full_name");
-      commercialOptions = (commercials ?? []) as Array<{ id: string; full_name: string | null }>;
+      userOptions = (archiveUsers ?? []) as Array<{ id: string; full_name: string | null; role: Role }>;
     }
 
     const projectIds = Array.from(new Set((screenshots ?? []).map((r) => r.project_id).filter(Boolean)));
@@ -164,6 +165,24 @@ export default async function StoragePage({
   const groupKeyForClient = (clientId: string) => clientsById[clientId] ?? clientId;
   const selectedUserLabel =
     isAdmin && qp.user ? ownersById[qp.user]?.full_name ?? ownersById[qp.user]?.role ?? qp.user : null;
+  const selectedUserRole = isAdmin && qp.user ? ownersById[qp.user]?.role ?? null : null;
+  const ownerIdsInArchive = isAdmin && !qp.user
+    ? Array.from(
+        new Set(
+          [
+            ...(files ?? []).map((f) => (f as unknown as { owner_id?: string }).owner_id).filter(Boolean),
+            ...(documents ?? []).map((d) => d.owner_id).filter(Boolean),
+            ...(screenshots ?? []).map((r) => r.user_id).filter(Boolean),
+          ].filter(Boolean),
+        ),
+      ) as string[]
+    : [];
+  const ownerLabel = (id: string) => {
+    const u = ownersById[id];
+    const name = u?.full_name ?? id.slice(0, 8);
+    const r = u?.role ? ` (${u.role})` : "";
+    return `${name}${r}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -172,7 +191,9 @@ export default async function StoragePage({
           <h1 className="text-2xl font-semibold">{isAdmin ? "Archives (preuves)" : "Fichiers Clients"}</h1>
           {isAdmin ? (
             <p className="text-sm text-zinc-500">
-              {qp.user ? `Filtre commercial: ${selectedUserLabel ?? qp.user}` : "Tous les commerciaux"}
+              {qp.user
+                ? `Filtre utilisateur: ${selectedUserLabel ?? qp.user}${selectedUserRole ? ` (${selectedUserRole})` : ""}`
+                : "Tous les utilisateurs"}
             </p>
           ) : null}
         </div>
@@ -184,10 +205,10 @@ export default async function StoragePage({
                 Tous
               </span>
             </Link>
-            {commercialOptions.slice(0, 12).map((c) => (
+            {userOptions.slice(0, 16).map((c) => (
               <Link key={c.id} href={`/app/storage?user=${encodeURIComponent(c.id)}`} className="inline-flex">
                 <span className="rounded-lg border border-zinc-200/80 bg-white/90 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950/85">
-                  {c.full_name ?? c.id.slice(0, 8)}
+                  {(c.full_name ?? c.id.slice(0, 8)).toLowerCase()} ({c.role})
                 </span>
               </Link>
             ))}
@@ -195,121 +216,239 @@ export default async function StoragePage({
         ) : null}
       </div>
 
-      <Card>
-        <h2 className="mb-3 font-semibold">Uploader un fichier</h2>
-        <ClientFilesUploader clients={clients ?? []} />
-      </Card>
+      {!isAdmin ? (
+        <Card>
+          <h2 className="mb-3 font-semibold">Uploader un fichier</h2>
+          <ClientFilesUploader clients={clients ?? []} />
+        </Card>
+      ) : null}
 
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold">Fichiers (client-files)</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(files ?? []).map((file) => {
-          const signedUrl = !isDemoMode ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
-          const image = file.mime_type?.startsWith("image/");
-          const owner = isAdmin ? ownersById[(file as unknown as { owner_id: string }).owner_id] : null;
-          const clientName = groupKeyForClient((file as unknown as { client_id: string }).client_id);
+      {isAdmin && !qp.user ? (
+        <div className="space-y-4">
+          {ownerIdsInArchive.map((ownerId) => {
+            const userFiles = (files ?? []).filter((f) => (f as unknown as { owner_id?: string }).owner_id === ownerId);
+            const userDocs = (documents ?? []).filter((d) => d.owner_id === ownerId);
+            const userScreens = (screenshots ?? []).filter((s) => s.user_id === ownerId);
 
-          return (
-            <Card key={file.id} className="space-y-2">
-              {image ? (
-                <ImageViewer
-                  src={signedUrl}
-                  alt={file.file_name}
-                  width={520}
-                  height={320}
-                  className="h-36 w-full overflow-hidden rounded-md"
-                />
-              ) : (
-                <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
-                  Apercu indisponible
+            return (
+              <Card key={ownerId} className="space-y-4">
+                <div>
+                  <h2 className="text-base font-semibold">{ownerLabel(ownerId)}</h2>
+                  <p className="text-sm text-zinc-500">
+                    {userFiles.length} fichiers, {userDocs.length} documents, {userScreens.length} captures
+                  </p>
                 </div>
-              )}
-              <p className="truncate text-sm font-medium">{file.file_name}</p>
-              <p className="truncate text-xs text-zinc-500">{clientName}</p>
-              {isAdmin && owner ? (
-                <p className="truncate text-xs text-zinc-500">
-                  {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
-                </p>
-              ) : null}
-            </Card>
-          );
-        })}
-      </div>
-      </div>
 
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold">Documents identite (client-documents)</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {(documents ?? []).map((doc) => {
-            const signedUrl = !isDemoMode ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
-            const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
-            const owner = isAdmin ? ownersById[doc.owner_id] : null;
-            const clientName = groupKeyForClient(doc.client_id);
-
-            return (
-              <Card key={doc.id} className="space-y-2">
-                {isImage && signedUrl ? (
-                  <ImageViewer
-                    src={signedUrl}
-                    alt={doc.file_name}
-                    width={520}
-                    height={320}
-                    className="h-36 w-full overflow-hidden rounded-md"
-                  />
-                ) : (
-                  <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
-                    Apercu indisponible
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Fichiers</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {userFiles.map((file) => {
+                      const signedUrl = !isDemoMode ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
+                      const image = file.mime_type?.startsWith("image/");
+                      const clientName = groupKeyForClient((file as unknown as { client_id: string }).client_id);
+                      return (
+                        <Card key={file.id} className="space-y-2">
+                          {image ? (
+                            <ImageViewer
+                              src={signedUrl}
+                              alt={file.file_name}
+                              width={520}
+                              height={320}
+                              className="h-36 w-full overflow-hidden rounded-md"
+                            />
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                              Apercu indisponible
+                            </div>
+                          )}
+                          <p className="truncate text-sm font-medium">{file.file_name}</p>
+                          <p className="truncate text-xs text-zinc-500">{clientName}</p>
+                        </Card>
+                      );
+                    })}
                   </div>
-                )}
-                <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
-                <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
-                <p className="truncate text-xs text-zinc-500">{clientName}</p>
-                {isAdmin && owner ? (
-                  <p className="truncate text-xs text-zinc-500">
-                    {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
-                  </p>
-                ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Documents identite</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {userDocs.map((doc) => {
+                      const signedUrl = !isDemoMode ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
+                      const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
+                      const clientName = groupKeyForClient(doc.client_id);
+                      return (
+                        <Card key={doc.id} className="space-y-2">
+                          {isImage && signedUrl ? (
+                            <ImageViewer
+                              src={signedUrl}
+                              alt={doc.file_name}
+                              width={520}
+                              height={320}
+                              className="h-36 w-full overflow-hidden rounded-md"
+                            />
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                              Apercu indisponible
+                            </div>
+                          )}
+                          <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
+                          <p className="truncate text-xs text-zinc-500">{clientName}</p>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Captures activite</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {userScreens.map((item) => {
+                      const signedUrl = !isDemoMode
+                        ? signedActivityReports[item.screenshot_path] ?? ""
+                        : item.screenshot_path;
+                      const projectName = projectsById[item.project_id] ?? item.project_id;
+                      return (
+                        <Card key={item.id} className="space-y-2">
+                          {signedUrl ? (
+                            <ImageViewer
+                              src={signedUrl}
+                              alt={item.description}
+                              width={520}
+                              height={320}
+                              className="h-36 w-full overflow-hidden rounded-md"
+                            />
+                          ) : (
+                            <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                              Apercu indisponible
+                            </div>
+                          )}
+                          <p className="truncate text-sm font-medium">{projectName}</p>
+                          <p className="truncate text-xs text-zinc-500">{item.description}</p>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               </Card>
             );
           })}
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold">Fichiers (client-files)</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(files ?? []).map((file) => {
+                const signedUrl = !isDemoMode ? signedClientFiles[file.storage_path] ?? "" : file.storage_path;
+                const image = file.mime_type?.startsWith("image/");
+                const owner = isAdmin ? ownersById[(file as unknown as { owner_id: string }).owner_id] : null;
+                const clientName = groupKeyForClient((file as unknown as { client_id: string }).client_id);
 
-      <div className="space-y-3">
-        <h2 className="text-base font-semibold">Captures activite (activity-reports)</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {(screenshots ?? []).map((item) => {
-            const signedUrl = !isDemoMode ? signedActivityReports[item.screenshot_path] ?? "" : item.screenshot_path;
-            const owner = isAdmin ? ownersById[item.user_id] : null;
-            const projectName = projectsById[item.project_id] ?? item.project_id;
+                return (
+                  <Card key={file.id} className="space-y-2">
+                    {image ? (
+                      <ImageViewer
+                        src={signedUrl}
+                        alt={file.file_name}
+                        width={520}
+                        height={320}
+                        className="h-36 w-full overflow-hidden rounded-md"
+                      />
+                    ) : (
+                      <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                        Apercu indisponible
+                      </div>
+                    )}
+                    <p className="truncate text-sm font-medium">{file.file_name}</p>
+                    <p className="truncate text-xs text-zinc-500">{clientName}</p>
+                    {isAdmin && owner ? (
+                      <p className="truncate text-xs text-zinc-500">
+                        {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
+                      </p>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
 
-            return (
-              <Card key={item.id} className="space-y-2">
-                {signedUrl ? (
-                  <ImageViewer
-                    src={signedUrl}
-                    alt={item.description}
-                    width={520}
-                    height={320}
-                    className="h-36 w-full overflow-hidden rounded-md"
-                  />
-                ) : (
-                  <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
-                    Apercu indisponible
-                  </div>
-                )}
-                <p className="truncate text-sm font-medium">{projectName}</p>
-                <p className="truncate text-xs text-zinc-500">{item.description}</p>
-                {isAdmin && owner ? (
-                  <p className="truncate text-xs text-zinc-500">
-                    {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
-                  </p>
-                ) : null}
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold">Documents identite (client-documents)</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(documents ?? []).map((doc) => {
+                const signedUrl = !isDemoMode ? signedClientDocs[doc.storage_path] ?? "" : doc.storage_path;
+                const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
+                const owner = isAdmin ? ownersById[doc.owner_id] : null;
+                const clientName = groupKeyForClient(doc.client_id);
+
+                return (
+                  <Card key={doc.id} className="space-y-2">
+                    {isImage && signedUrl ? (
+                      <ImageViewer
+                        src={signedUrl}
+                        alt={doc.file_name}
+                        width={520}
+                        height={320}
+                        className="h-36 w-full overflow-hidden rounded-md"
+                      />
+                    ) : (
+                      <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                        Apercu indisponible
+                      </div>
+                    )}
+                    <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
+                    <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
+                    <p className="truncate text-xs text-zinc-500">{clientName}</p>
+                    {isAdmin && owner ? (
+                      <p className="truncate text-xs text-zinc-500">
+                        {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
+                      </p>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold">Captures activite (activity-reports)</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(screenshots ?? []).map((item) => {
+                const signedUrl = !isDemoMode
+                  ? signedActivityReports[item.screenshot_path] ?? ""
+                  : item.screenshot_path;
+                const owner = isAdmin ? ownersById[item.user_id] : null;
+                const projectName = projectsById[item.project_id] ?? item.project_id;
+
+                return (
+                  <Card key={item.id} className="space-y-2">
+                    {signedUrl ? (
+                      <ImageViewer
+                        src={signedUrl}
+                        alt={item.description}
+                        width={520}
+                        height={320}
+                        className="h-36 w-full overflow-hidden rounded-md"
+                      />
+                    ) : (
+                      <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
+                        Apercu indisponible
+                      </div>
+                    )}
+                    <p className="truncate text-sm font-medium">{projectName}</p>
+                    <p className="truncate text-xs text-zinc-500">{item.description}</p>
+                    {isAdmin && owner ? (
+                      <p className="truncate text-xs text-zinc-500">
+                        {owner.full_name ?? "Utilisateur"} {owner.role ? `(${owner.role})` : ""}
+                      </p>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

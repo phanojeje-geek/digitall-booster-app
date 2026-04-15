@@ -16,7 +16,7 @@ export const routePathByKey: Record<AppRouteKey, string> = {
 export const roleAccess: Record<Role, AppRouteKey[]> = {
   admin: ["dashboard", "clients", "projects", "activity", "storage", "users", "live"],
   commercial: ["dashboard", "clients", "storage"],
-  marketing: ["dashboard", "projects", "activity", "storage", "cms"],
+  marketing: ["dashboard", "projects", "activity", "storage"],
   dev: ["dashboard", "projects", "activity", "storage"],
   designer: ["dashboard", "projects", "activity", "storage"],
 };
