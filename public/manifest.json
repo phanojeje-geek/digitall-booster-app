@@ -22,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-digitall-booster.svg",
+      "sizes": "1200x520",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

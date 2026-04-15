@@ -1,6 +1,6 @@
-import Link from "next/link";
 import Image from "next/image";
 import { Rocket } from "lucide-react";
+import { EnterAppButton } from "@/components/enter-app-button";
 
 export default function Home() {
   return (
@@ -35,12 +35,9 @@ export default function Home() {
             Pilotez clients, projets, taches et equipe dans une interface premium, rapide et mobile-first.
           </p>
           <div className="mt-7 flex justify-center">
-            <Link
-              href="/app"
-              className="rounded-xl bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-cyan-300"
-            >
+            <EnterAppButton className="rounded-xl bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-cyan-300 active:scale-[0.98] touch-manipulation">
               Entrer dans l application
-            </Link>
+            </EnterAppButton>
           </div>
         </div>
       </div>
