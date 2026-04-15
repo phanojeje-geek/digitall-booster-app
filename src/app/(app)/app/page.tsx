@@ -348,59 +348,124 @@ export default async function DashboardPage({
     activityQuery,
   ]);
 
-  const clientsStatusQuery = isAdmin
-    ? supabase.from("clients").select("statut")
-    : supabase.from("clients").select("statut").eq("owner_id", user.id);
-  const projectsStatusQuery = isAdmin
-    ? supabase.from("projects").select("statut")
-    : supabase.from("projects").select("statut").or(`owner_id.eq.${user.id},assigned_to.eq.${user.id}`);
-  const reportsStatusQuery = isAdmin
-    ? supabase.from("activity_reports").select("status")
-    : supabase.from("activity_reports").select("status").eq("user_id", user.id);
+  const clientsProspectQuery = supabase.from("clients").select("id", { count: "exact", head: true });
+  const clientsEnCoursQuery = supabase.from("clients").select("id", { count: "exact", head: true });
+  const clientsClientQuery = supabase.from("clients").select("id", { count: "exact", head: true });
+  if (!isAdmin) {
+    clientsProspectQuery.eq("owner_id", user.id);
+    clientsEnCoursQuery.eq("owner_id", user.id);
+    clientsClientQuery.eq("owner_id", user.id);
+  }
+  clientsProspectQuery.eq("statut", "prospect");
+  clientsEnCoursQuery.eq("statut", "en cours");
+  clientsClientQuery.eq("statut", "client");
 
-  const [clientsStatusRows, projectsStatusRows, reportsStatusRows] = await Promise.all([
-    clientsStatusQuery,
-    projectsStatusQuery,
-    reportsStatusQuery,
-  ]);
+  const projectsEnAttenteQuery = supabase.from("projects").select("id", { count: "exact", head: true });
+  const projectsEnCoursQuery = supabase.from("projects").select("id", { count: "exact", head: true });
+  const projectsTermineQuery = supabase.from("projects").select("id", { count: "exact", head: true });
+  if (!isAdmin) {
+    projectsEnAttenteQuery.or(`owner_id.eq.${user.id},assigned_to.eq.${user.id}`);
+    projectsEnCoursQuery.or(`owner_id.eq.${user.id},assigned_to.eq.${user.id}`);
+    projectsTermineQuery.or(`owner_id.eq.${user.id},assigned_to.eq.${user.id}`);
+  }
+  projectsEnAttenteQuery.eq("statut", "en attente");
+  projectsEnCoursQuery.eq("statut", "en cours");
+  projectsTermineQuery.eq("statut", "termine");
 
-  const roleData = toRoleWidgetData({
-    clientsStatusRows: (clientsStatusRows.data ?? []) as Array<{ statut: string }>,
-    projectsStatusRows: (projectsStatusRows.data ?? []) as Array<{ statut: string }>,
-    reportsStatusRows: (reportsStatusRows.data ?? []) as Array<{ status: string }>,
-  });
+  const reportsEnCoursQuery = supabase.from("activity_reports").select("id", { count: "exact", head: true }).eq("status", "en cours");
+  const reportsTermineQuery = supabase.from("activity_reports").select("id", { count: "exact", head: true }).eq("status", "termine");
+  if (!isAdmin) {
+    reportsEnCoursQuery.eq("user_id", user.id);
+    reportsTermineQuery.eq("user_id", user.id);
+  }
+
+  const [clientsProspect, clientsEnCours, clientsClient, projectsEnAttente, projectsEnCours, projectsTermine, reportsEnCours, reportsTermine] =
+    await Promise.all([
+      clientsProspectQuery,
+      clientsEnCoursQuery,
+      clientsClientQuery,
+      projectsEnAttenteQuery,
+      projectsEnCoursQuery,
+      projectsTermineQuery,
+      reportsEnCoursQuery,
+      reportsTermineQuery,
+    ]);
+
+  const roleData: RoleWidgetData = {
+    clientsStatus: {
+      prospect: clientsProspect.count ?? 0,
+      enCours: clientsEnCours.count ?? 0,
+      client: clientsClient.count ?? 0,
+    },
+    projectsStatus: {
+      enAttente: projectsEnAttente.count ?? 0,
+      enCours: projectsEnCours.count ?? 0,
+      termine: projectsTermine.count ?? 0,
+    },
+    reportsStatus: {
+      enCours: reportsEnCours.count ?? 0,
+      termine: reportsTermine.count ?? 0,
+    },
+  };
 
   let adminAnalytics: AdminAnalytics | null = null;
   if (isAdmin) {
     const [{ data: usersRows }, { data: reportRows }, { data: projectRows }] = await Promise.all([
-      supabase.from("profiles").select("id,full_name,role"),
-      supabase.from("activity_reports").select("user_id,project_id,status"),
-      supabase.from("projects").select("id,nom"),
+      supabase.from("profiles").select("id,full_name,role").order("created_at", { ascending: false }).limit(500),
+      supabase
+        .from("activity_reports")
+        .select("user_id,project_id,status,created_at")
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      supabase.from("projects").select("id,nom").order("created_at", { ascending: false }).limit(500),
     ]);
 
-    const users = usersRows ?? [];
-    const reportsAll = reportRows ?? [];
-    const projectsAll = projectRows ?? [];
+    const users = (usersRows ?? []) as Array<{ id: string; full_name: string | null; role: string }>;
+    const reportsAll = (reportRows ?? []) as Array<{ user_id: string; project_id: string; status: string }>;
+    const projectsAll = (projectRows ?? []) as Array<{ id: string; nom: string }>;
+
+    const userRoleById = new Map(users.map((u) => [u.id, u.role]));
 
     const teams: Array<"dev" | "marketing" | "designer"> = ["dev", "marketing", "designer"];
+    const usersCountByTeam = new Map(teams.map((t) => [t, 0]));
+    for (const u of users) {
+      if (usersCountByTeam.has(u.role as (typeof teams)[number])) {
+        usersCountByTeam.set(u.role as (typeof teams)[number], (usersCountByTeam.get(u.role as (typeof teams)[number]) ?? 0) + 1);
+      }
+    }
+
+    const reportsCountByTeam = new Map(teams.map((t) => [t, 0]));
+    const reportCountByUser = new Map<string, number>();
+    const progressByProject = new Map<string, { total: number; done: number }>();
+    for (const r of reportsAll) {
+      reportCountByUser.set(r.user_id, (reportCountByUser.get(r.user_id) ?? 0) + 1);
+      const role = userRoleById.get(r.user_id);
+      if (reportsCountByTeam.has(role as (typeof teams)[number])) {
+        reportsCountByTeam.set(role as (typeof teams)[number], (reportsCountByTeam.get(role as (typeof teams)[number]) ?? 0) + 1);
+      }
+      const prev = progressByProject.get(r.project_id) ?? { total: 0, done: 0 };
+      prev.total += 1;
+      if (r.status === "termine") prev.done += 1;
+      progressByProject.set(r.project_id, prev);
+    }
+
     const byTeam = teams.map((team) => ({
       team,
-      users: users.filter((u) => u.role === team).length,
-      reports: reportsAll.filter((r) => users.some((u) => u.id === r.user_id && u.role === team)).length,
+      users: usersCountByTeam.get(team) ?? 0,
+      reports: reportsCountByTeam.get(team) ?? 0,
     }));
 
     const byUser = users
       .map((u) => ({
         user: u.full_name || u.id,
-        reports: reportsAll.filter((r) => r.user_id === u.id).length,
+        reports: reportCountByUser.get(u.id) ?? 0,
       }))
       .sort((a, b) => b.reports - a.reports)
       .slice(0, 8);
 
     const projectProgress = projectsAll.map((project) => {
-      const list = reportsAll.filter((r) => r.project_id === project.id);
-      const done = list.filter((r) => r.status === "termine").length;
-      const progress = list.length ? Math.round((done / list.length) * 100) : 0;
+      const data = progressByProject.get(project.id) ?? { total: 0, done: 0 };
+      const progress = data.total ? Math.round((data.done / data.total) * 100) : 0;
       return { project: project.nom, progress };
     });
 

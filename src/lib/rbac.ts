@@ -16,9 +16,9 @@ export const routePathByKey: Record<AppRouteKey, string> = {
 export const roleAccess: Record<Role, AppRouteKey[]> = {
   admin: ["dashboard", "clients", "projects", "activity", "storage", "users", "live"],
   commercial: ["dashboard", "clients", "storage"],
-  marketing: ["dashboard", "projects", "activity", "storage"],
-  dev: ["dashboard", "projects", "activity", "storage"],
-  designer: ["dashboard", "projects", "activity", "storage"],
+  marketing: ["dashboard", "projects", "activity"],
+  dev: ["dashboard", "projects", "activity"],
+  designer: ["dashboard", "projects", "activity"],
 };
 
 export function canAccessRoute(role: Role, pathname: string) {

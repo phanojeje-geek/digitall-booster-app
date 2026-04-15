@@ -32,11 +32,11 @@ export async function createActivityReportAction(formData: FormData) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id,owner_id,assigned_to")
+    .select("id,owner_id,assigned_to,statut")
     .eq("id", projectId)
     .single();
 
-  const allowed = project && (project.owner_id === user.id || project.assigned_to === user.id);
+  const allowed = project && project.assigned_to === user.id && project.statut === "termine";
   if (!allowed) return;
 
   const path = `${user.id}/${projectId}/${Date.now()}-${screenshot.name}`;

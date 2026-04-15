@@ -76,6 +76,12 @@ export default async function ClientsPage({
     clients = (data ?? []) as ClientListRow[];
   }
 
+  const prospects = clients.filter((c) => c.statut === "prospect");
+  const enCours = clients.filter((c) => c.statut === "en cours");
+  const customers = clients.filter((c) => c.statut === "client");
+  const other = clients.filter((c) => !["prospect", "en cours", "client"].includes(c.statut));
+  const orderedClients = [...prospects, ...enCours, ...customers, ...other];
+
   return (
     <div className="space-y-5">
       <div>
@@ -187,7 +193,7 @@ export default async function ClientsPage({
       )}
 
       <Card>
-        <form className="grid gap-3 md:grid-cols-3">
+        <form className="grid gap-3 sm:grid-cols-3">
           <Input name="q" defaultValue={params.q} placeholder="Rechercher..." />
           <select
             name="statut"
@@ -205,26 +211,83 @@ export default async function ClientsPage({
         </form>
       </Card>
 
+      <Card className="grid gap-3 sm:grid-cols-4">
+        <div>
+          <p className="text-xs uppercase text-zinc-500">Total</p>
+          <p className="text-2xl font-semibold tracking-tight">{clients.length}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-zinc-500">Prospects</p>
+          <p className="text-2xl font-semibold tracking-tight">{prospects.length}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-zinc-500">En cours</p>
+          <p className="text-2xl font-semibold tracking-tight">{enCours.length}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-zinc-500">Clients</p>
+          <p className="text-2xl font-semibold tracking-tight">{customers.length}</p>
+        </div>
+      </Card>
+
       <div className="grid gap-3 md:hidden">
-        {(clients ?? []).map((client) => (
-          <Card key={client.id}>
-            <p className="font-medium">{client.nom}</p>
-            <p className="text-sm text-zinc-500">{client.entreprise ?? "-"}</p>
-            <p className="text-sm">{client.email}</p>
-            <p className="mb-2 text-xs uppercase text-zinc-500">{client.statut}</p>
-            <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
-              <input type="hidden" name="id" value={client.id} />
-              <Button type="submit" variant="danger" className="w-full">
-                Supprimer
-              </Button>
-            </ConfirmForm>
-            <Link href={`/app/clients/${client.id}`} className="mt-2 inline-flex w-full">
-              <Button type="button" variant="ghost" className="w-full">
-                Dossier client
-              </Button>
-            </Link>
-          </Card>
-        ))}
+        {[
+          { key: "prospect", label: "Prospects", rows: prospects },
+          { key: "en cours", label: "En cours", rows: enCours },
+          { key: "client", label: "Clients", rows: customers },
+          { key: "autres", label: "Autres", rows: other },
+        ].map((section) => {
+          if (!section.rows.length) return null;
+          return (
+            <details key={section.key} className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3" open>
+              <summary className="cursor-pointer select-none text-sm font-semibold">
+                {section.label} — {section.rows.length}
+              </summary>
+              <div className="mt-3 grid gap-3">
+                {section.rows.map((client) => (
+                  <Card key={client.id}>
+                    <p className="font-medium">{client.nom}</p>
+                    <p className="text-sm text-zinc-500">{client.entreprise ?? "-"}</p>
+                    <p className="text-sm">{client.email}</p>
+                    <p className="mb-2 text-xs uppercase text-zinc-500">{client.statut}</p>
+                    <Link href={`/app/clients/${client.id}`} className="mt-2 inline-flex w-full">
+                      <Button type="button" variant="ghost" className="w-full">
+                        Dossier client
+                      </Button>
+                    </Link>
+                    <ConfirmForm
+                      action={updateClientAction}
+                      confirmMessage="Confirmer le passage au statut suivant ?"
+                      className="mt-2"
+                    >
+                      <input type="hidden" name="id" value={client.id} />
+                      <input type="hidden" name="nom" value={client.nom} />
+                      <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
+                      <input type="hidden" name="telephone" value={client.telephone ?? ""} />
+                      <input type="hidden" name="email" value={client.email} />
+                      <input type="hidden" name="statut" value={client.statut === "prospect" ? "en cours" : "client"} />
+                      <Button type="submit" variant="secondary" className="w-full">
+                        Avancer
+                      </Button>
+                    </ConfirmForm>
+                    {isAdmin ? (
+                      <ConfirmForm
+                        action={deleteClientAction}
+                        confirmMessage="Confirmer la suppression de ce client ?"
+                        className="mt-2"
+                      >
+                        <input type="hidden" name="id" value={client.id} />
+                        <Button type="submit" variant="danger" className="w-full">
+                          Supprimer
+                        </Button>
+                      </ConfirmForm>
+                    ) : null}
+                  </Card>
+                ))}
+              </div>
+            </details>
+          );
+        })}
       </div>
 
       <Card className="hidden overflow-auto md:block">
@@ -240,7 +303,7 @@ export default async function ClientsPage({
             </tr>
           </thead>
           <tbody>
-            {(clients ?? []).map((client) => (
+            {orderedClients.map((client) => (
               <tr
                 key={client.id}
                 className="border-t border-zinc-200/80 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
@@ -276,12 +339,14 @@ export default async function ClientsPage({
                         Avancer
                       </Button>
                     </ConfirmForm>
-                    <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
-                      <input type="hidden" name="id" value={client.id} />
-                      <Button type="submit" variant="danger">
-                        Supprimer
-                      </Button>
-                    </ConfirmForm>
+                    {isAdmin ? (
+                      <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
+                        <input type="hidden" name="id" value={client.id} />
+                        <Button type="submit" variant="danger">
+                          Supprimer
+                        </Button>
+                      </ConfirmForm>
+                    ) : null}
                   </div>
                 </td>
               </tr>

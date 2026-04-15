@@ -24,6 +24,7 @@ export function NotificationBell() {
   const [items, setItems] = useState<NotificationItem[]>(
     isDemoMode ? (mockNotifications as NotificationItem[]) : [],
   );
+  const [pendingProjects, setPendingProjects] = useState(0);
 
   useEffect(() => {
     if (!supabase) return;
@@ -69,6 +70,17 @@ export function NotificationBell() {
             read: item.read || readSet.has(item.id),
           })),
       );
+
+      if (currentRole && !["admin", "commercial"].includes(currentRole)) {
+        const { count } = await supabase
+          .from("projects")
+          .select("id", { count: "exact", head: true })
+          .eq("statut", "en attente")
+          .is("assigned_to", null);
+        setPendingProjects(count ?? 0);
+      } else {
+        setPendingProjects(0);
+      }
     };
 
     void load();
@@ -85,6 +97,7 @@ export function NotificationBell() {
         { event: "*", schema: "public", table: "notification_reads" },
         () => void load(),
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, () => void load())
       .subscribe();
 
     return () => {
@@ -93,6 +106,7 @@ export function NotificationBell() {
   }, [supabase]);
 
   const unread = items.filter((n) => !n.read).length;
+  const badgeCount = unread + pendingProjects;
 
   async function markAllRead() {
     if (!supabase) {
@@ -117,16 +131,16 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
-      <Button variant="ghost" onClick={() => setOpen((v) => !v)}>
+      <Button type="button" variant="ghost" onClick={() => setOpen((v) => !v)} className="relative h-10 w-10 p-0">
         <Bell size={16} />
-        {unread > 0 ? (
-          <span className="ml-2 rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">
-            {unread}
+        {badgeCount > 0 ? (
+          <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-content-center rounded-full bg-indigo-600 px-1 text-[11px] font-semibold text-white">
+            {badgeCount > 99 ? "99+" : badgeCount}
           </span>
         ) : null}
       </Button>
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-zinc-200/80 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+        <div className="absolute right-0 z-30 mt-2 w-[min(92vw,22rem)] rounded-2xl border border-zinc-200/80 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold">Notifications</p>
             <Button type="button" variant="ghost" onClick={() => void markAllRead()}>
@@ -134,6 +148,11 @@ export function NotificationBell() {
             </Button>
           </div>
           <div className="space-y-2">
+            {pendingProjects > 0 ? (
+              <div className="rounded-xl bg-indigo-50 p-2 text-sm text-indigo-900">
+                Projets en attente: <span className="font-semibold">{pendingProjects}</span>
+              </div>
+            ) : null}
             {items.length === 0 ? <p className="text-sm text-zinc-500">Aucune notification.</p> : null}
             {items.map((item) => (
               <div key={item.id} className="rounded-xl bg-zinc-50 p-2 text-sm dark:bg-zinc-900">

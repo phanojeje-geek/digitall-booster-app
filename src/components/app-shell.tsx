@@ -2,8 +2,6 @@ import { Search, Sparkles } from "lucide-react";
 import { AppMobileDrawer } from "@/components/app-mobile-drawer";
 import { AppNav, type AppNavIcon, type AppNavLink } from "@/components/app-nav";
 import { CommercialLiveLocation } from "@/components/commercial-live-location";
-import { ContrastToggle } from "@/components/contrast-toggle";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
@@ -19,7 +17,6 @@ const links = [
   { href: "/app/projects", label: "Projets", icon: "projects" },
   { href: "/app/activity", label: "Activite", icon: "activity" },
   { href: "/app/storage", label: "Fichiers", icon: "storage" },
-  { href: "/app/cms", label: "CMS", icon: "cms" },
   { href: "/app/users", label: "Utilisateurs", icon: "users" },
   { href: "/app/live", label: "Live", icon: "live" },
 ] satisfies AppNavLink[];
@@ -30,7 +27,6 @@ const keyByPath: Record<string, AppNavIcon> = {
   "/app/projects": "projects",
   "/app/activity": "activity",
   "/app/storage": "storage",
-  "/app/cms": "cms",
   "/app/users": "users",
   "/app/live": "live",
 };
@@ -70,8 +66,8 @@ export function AppShell({
         </aside>
         <div className="flex min-w-0 flex-col">
           <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/88 px-4 py-3 backdrop-blur md:px-6 dark:border-zinc-800/80 dark:bg-[#0f172b]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-[220px] flex flex-1 items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <AppMobileDrawer
                   links={visibleLinks}
                   userName={profile?.full_name ?? "Utilisateur"}
@@ -83,13 +79,11 @@ export function AppShell({
                 </div>
               </div>
               <p className="hidden text-sm font-medium sm:block">{profile?.full_name ?? "Utilisateur"}</p>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <span className="hidden rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs uppercase text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 sm:inline-flex">
                   {profile?.role ?? "role"}
                 </span>
                 <NotificationBell />
-                <ContrastToggle />
-                <ThemeToggle />
                 <ConfirmForm action={signOutAction} confirmMessage="Confirmer la deconnexion ?">
                   <Button type="submit" variant="ghost">
                     Deconnexion

@@ -9,7 +9,7 @@ export function Button({ className, variant = "primary", ...props }: Props) {
   return (
     <button
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70 active:scale-[0.98] active:brightness-110 motion-reduce:active:scale-100 touch-manipulation disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/70 active:translate-y-px active:scale-[0.97] active:brightness-105 motion-reduce:active:translate-y-0 motion-reduce:active:scale-100 touch-manipulation disabled:pointer-events-none disabled:opacity-50",
         variant === "primary" &&
           "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30 hover:-translate-y-0.5 hover:bg-indigo-500 active:shadow-indigo-400/50",
         variant === "secondary" &&

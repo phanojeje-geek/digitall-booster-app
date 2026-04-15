@@ -112,15 +112,14 @@ export async function deleteClientAction(formData: FormData) {
     return;
   }
 
-  const user = await getCurrentUser();
   const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") {
+    return;
+  }
   const supabase = await createClient();
   const id = String(formData.get("id"));
 
   const deleteQuery = supabase.from("clients").delete().eq("id", id);
-  if (profile?.role !== "admin") {
-    deleteQuery.eq("owner_id", user.id);
-  }
   await deleteQuery;
   revalidatePath("/app/clients");
   revalidatePath("/app");
@@ -134,7 +133,7 @@ export async function uploadClientDocumentAction(formData: FormData) {
 
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
-  if (!profile || !["commercial", "admin"].includes(profile.role)) {
+  if (!profile || profile.role !== "commercial") {
     return;
   }
 
@@ -176,7 +175,7 @@ export async function saveClientSignatureAction(formData: FormData) {
 
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
-  if (!profile || !["commercial", "admin"].includes(profile.role)) {
+  if (!profile || profile.role !== "commercial") {
     return;
   }
 

@@ -7,6 +7,58 @@ import { Button } from "@/components/ui/button";
 
 type ClientOption = { id: string; nom: string };
 
+async function toWebp(file: File, maxSide: number, quality: number) {
+  if (!file.type.startsWith("image/")) return file;
+  if (file.type === "image/svg+xml") return file;
+  if (file.type === "image/webp") return file;
+
+  const createBitmap = async () => {
+    if ("createImageBitmap" in window) {
+      return await createImageBitmap(file);
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("image-load-failed"));
+        el.src = url;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no-canvas");
+      ctx.drawImage(img, 0, 0);
+      return await createImageBitmap(canvas);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  try {
+    const bitmap = await createBitmap();
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+    if (!blob) return file;
+
+    const base = file.name.replace(/\.[^./\\]+$/, "");
+    return new File([blob], `${base}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
   const router = useRouter();
   const [clientId, setClientId] = useState("");
@@ -32,8 +84,9 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
         return;
       }
 
-      const path = `${user.id}/${clientId}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("client-files").upload(path, file, {
+      const converted = await toWebp(file, 1600, 0.82);
+      const path = `${user.id}/${clientId}/${Date.now()}-${converted.name}`;
+      const { error: uploadError } = await supabase.storage.from("client-files").upload(path, converted, {
         upsert: false,
       });
       if (uploadError) {
@@ -45,8 +98,8 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
         owner_id: user.id,
         client_id: clientId,
         storage_path: path,
-        file_name: file.name,
-        mime_type: file.type,
+        file_name: converted.name,
+        mime_type: converted.type,
       });
       if (insertError) {
         setError(insertError.message);
@@ -61,15 +114,15 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-3">
+    <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-3">
       <select
         name="client_id"
         required
         value={clientId}
         onChange={(e) => setClientId(e.target.value)}
-        className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+        className="h-10 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
       >
-        <option value="">Selectionner un client</option>
+        <option value="">Sélectionner un client</option>
         {clients.map((client) => (
           <option key={client.id} value={client.id}>
             {client.nom}
@@ -82,10 +135,10 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
         required
         accept="image/*,application/pdf"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+        className="h-10 w-full min-w-0 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
       />
       <Button type="submit" disabled={!canSubmit}>
-        {busy ? "Upload..." : "Upload"}
+        {busy ? "Téléversement..." : "Téléverser"}
       </Button>
       {error ? <p className="md:col-span-3 text-sm text-red-600 dark:text-red-300">{error}</p> : null}
     </form>
@@ -155,8 +208,9 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
       }
 
       for (const item of uploads) {
-        const path = `${user.id}/${clientId}/${item.docType}-${Date.now()}-${item.file.name}`;
-        const { error: uploadError } = await supabase.storage.from("client-documents").upload(path, item.file, {
+        const converted = await toWebp(item.file, 1600, 0.82);
+        const path = `${user.id}/${clientId}/${item.docType}-${Date.now()}-${converted.name}`;
+        const { error: uploadError } = await supabase.storage.from("client-documents").upload(path, converted, {
           upsert: false,
         });
         if (uploadError) {
@@ -169,7 +223,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
           client_id: clientId,
           doc_type: item.docType,
           storage_path: path,
-          file_name: item.file.name,
+          file_name: converted.name,
         });
         if (insertError) {
           setError(insertError.message);
@@ -200,14 +254,14 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
       </select>
 
       {mode.requiresBothSides ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <input
             type="file"
             required
             accept="image/*"
             capture="environment"
             onChange={(e) => setRecto(e.target.files?.[0] ?? null)}
-            className="h-10 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
+            className="h-10 w-full min-w-0 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
           />
           <input
             type="file"
@@ -215,7 +269,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
             accept="image/*"
             capture="environment"
             onChange={(e) => setVerso(e.target.files?.[0] ?? null)}
-            className="h-10 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
+            className="h-10 w-full min-w-0 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
           />
         </div>
       ) : (
@@ -225,15 +279,14 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
           accept="image/*,application/pdf"
           capture="environment"
           onChange={(e) => setSingle(e.target.files?.[0] ?? null)}
-          className="h-10 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
+          className="h-10 w-full min-w-0 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
         />
       )}
 
       <Button type="submit" disabled={!canSubmit}>
-        {busy ? "Upload..." : "Uploader"}
+        {busy ? "Téléversement..." : "Téléverser"}
       </Button>
       {error ? <p className="text-sm text-red-600 dark:text-red-300">{error}</p> : null}
     </form>
   );
 }
-

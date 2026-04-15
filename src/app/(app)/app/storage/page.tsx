@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { ClientFilesUploader } from "@/components/uploaders";
 import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -41,7 +43,7 @@ type ScreenshotRow = {
 export default async function StoragePage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string }>;
+  searchParams: Promise<{ user?: string; q?: string }>;
 }) {
   const LIMIT_FILES = 60;
   const LIMIT_DOCS = 60;
@@ -51,6 +53,10 @@ export default async function StoragePage({
   const profile = await getCurrentProfile();
   const role: Role = profile?.role ?? "dev";
   const isAdmin = role === "admin";
+  const isCommercial = role === "commercial";
+  if (!isAdmin && !isCommercial) {
+    redirect("/app?forbidden=1");
+  }
   const qp = await searchParams;
   let clients = mockClients.map((c) => ({ id: c.id, nom: c.nom }));
   let files: FileRow[] = isDemoMode ? ((mockFiles as unknown) as FileRow[]) : [];
@@ -108,22 +114,6 @@ export default async function StoragePage({
       ]);
       files = (f ?? []) as FileRow[];
       documents = (d ?? []) as DocumentRow[];
-
-      const urls = await Promise.all(
-        files.map(async (row) => {
-          const { data } = await db.storage.from("client-files").createSignedUrl(row.storage_path, 60 * 60);
-          return { path: row.storage_path, url: data?.signedUrl ?? "" };
-        }),
-      );
-      signedClientFiles = Object.fromEntries(urls.filter((x) => x.url).map((x) => [x.path, x.url]));
-
-      const docUrls = await Promise.all(
-        documents.map(async (row) => {
-          const { data } = await db.storage.from("client-documents").createSignedUrl(row.storage_path, 60 * 60);
-          return { path: row.storage_path, url: data?.signedUrl ?? "" };
-        }),
-      );
-      signedClientDocs = Object.fromEntries(docUrls.filter((x) => x.url).map((x) => [x.path, x.url]));
     }
 
     if (isAdmin && selectedUser) {
@@ -191,6 +181,14 @@ export default async function StoragePage({
 
   const groupKeyForClient = (clientId: string) => clientsById[clientId] ?? clientId;
   const selectedUserLabel = selectedUser ? selectedUser.full_name ?? selectedUser.id : null;
+  const q = (qp.q ?? "").trim().toLowerCase();
+  const matches = (value: string) => (q ? value.toLowerCase().includes(q) : true);
+  const filteredFiles = q
+    ? files.filter((f) => matches(f.file_name) || matches(groupKeyForClient(f.client_id)))
+    : files;
+  const filteredDocs = q
+    ? documents.filter((d) => matches(d.file_name) || matches(d.doc_type) || matches(groupKeyForClient(d.client_id)))
+    : documents;
 
   return (
     <div className="space-y-6">
@@ -216,9 +214,24 @@ export default async function StoragePage({
       </div>
 
       {!isAdmin ? (
-        <Card>
-          <h2 className="mb-3 font-semibold">Uploader un fichier</h2>
+        <Card className="mx-auto w-full max-w-3xl">
+          <h2 className="mb-3 font-semibold">Téléverser un fichier</h2>
           <ClientFilesUploader clients={clients ?? []} />
+        </Card>
+      ) : null}
+
+      {!isAdmin ? (
+        <Card className="mx-auto w-full max-w-3xl">
+          <h2 className="mb-3 font-semibold">Recherche</h2>
+          <form className="flex flex-col gap-2 sm:flex-row">
+            <Input name="q" defaultValue={qp.q ?? ""} placeholder="Rechercher par client ou nom de fichier..." />
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+            >
+              Filtrer
+            </button>
+          </form>
         </Card>
       ) : null}
 
@@ -406,32 +419,103 @@ export default async function StoragePage({
       {!isAdmin ? (
         <div className="space-y-3">
           <h2 className="text-base font-semibold">Mes fichiers</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {files.map((file) => {
-              const signedUrl = signedClientFiles[file.storage_path] ?? "";
-              const image = (file.mime_type ?? "").startsWith("image/");
-              const clientName = groupKeyForClient(file.client_id);
-              return (
-                <Card key={file.id} className="space-y-2">
-                  {image && signedUrl ? (
-                    <ImageViewer
-                      src={signedUrl}
-                      alt={file.file_name}
-                      width={520}
-                      height={320}
-                      className="h-36 w-full overflow-hidden rounded-md"
-                    />
-                  ) : (
-                    <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
-                      Apercu indisponible
+          {Array.from(
+            new Set([...filteredFiles.map((f) => f.client_id), ...filteredDocs.map((d) => d.client_id)].filter(Boolean)),
+          ).map((clientId) => {
+            const clientName = groupKeyForClient(clientId);
+            const clientFiles = filteredFiles.filter((f) => f.client_id === clientId);
+            const clientDocs = filteredDocs.filter((d) => d.client_id === clientId);
+            if (!clientFiles.length && !clientDocs.length) return null;
+
+            const images = clientFiles.filter((f) => (f.mime_type ?? "").startsWith("image/"));
+            const others = clientFiles.filter((f) => !(f.mime_type ?? "").startsWith("image/"));
+
+            return (
+              <details
+                key={clientId}
+                className="rounded-2xl border border-zinc-200/80 bg-white/92 p-4 text-zinc-900 shadow-sm backdrop-blur-sm"
+                open={Boolean(q)}
+              >
+                <summary className="cursor-pointer select-none text-base font-semibold">
+                  {clientName} — {images.length} images, {clientDocs.length} documents, {others.length} autres
+                </summary>
+                <div className="mt-4 space-y-4">
+                  {images.length ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">Images</p>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {images.map((file) => {
+                          return (
+                            <Card key={file.id} className="space-y-2">
+                              <ImageViewer
+                                bucket="client-files"
+                                path={file.storage_path}
+                                alt={file.file_name}
+                                width={520}
+                                height={320}
+                                className="h-36 w-full overflow-hidden rounded-md"
+                              />
+                              <p className="truncate text-sm font-medium">{file.file_name}</p>
+                            </Card>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
-                  <p className="truncate text-sm font-medium">{file.file_name}</p>
-                  <p className="truncate text-xs text-zinc-500">{clientName}</p>
-                </Card>
-              );
-            })}
-          </div>
+                  ) : null}
+
+                  {clientDocs.length ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">Documents</p>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {clientDocs.map((doc) => {
+                          const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
+                          return (
+                            <Card key={doc.id} className="space-y-2">
+                              {isImage ? (
+                                <ImageViewer
+                                  bucket="client-documents"
+                                  path={doc.storage_path}
+                                  alt={doc.file_name}
+                                  width={520}
+                                  height={320}
+                                  className="h-36 w-full overflow-hidden rounded-md"
+                                />
+                              ) : (
+                                <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500">
+                                  Aperçu indisponible
+                                </div>
+                              )}
+                              <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ")}</p>
+                              <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {others.length ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">Autres fichiers</p>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {others.map((file) => (
+                          <Card key={file.id} className="space-y-2">
+                            <div className="flex h-20 items-center justify-center rounded-md bg-zinc-100 text-xs text-zinc-500">
+                              {file.mime_type ?? "fichier"}
+                            </div>
+                            <p className="truncate text-sm font-medium">{file.file_name}</p>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            );
+          })}
+          {filteredFiles.length === 0 && filteredDocs.length === 0 ? (
+            <Card className="mx-auto w-full max-w-3xl">Aucun fichier trouvé.</Card>
+          ) : null}
         </div>
       ) : null}
     </div>

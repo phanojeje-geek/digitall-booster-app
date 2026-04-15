@@ -6,6 +6,7 @@ import { ClientDocumentsUploader } from "@/components/uploaders";
 import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { saveClientSignatureAction } from "@/features/clients/actions";
 import { SignaturePad } from "@/components/signature-pad";
@@ -53,7 +54,7 @@ export default async function ClientOnboardingPage({
   const qp = await searchParams;
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
-  const canEdit = profile?.role === "commercial" || profile?.role === "admin";
+  const canEdit = profile?.role === "commercial";
 
   let clientData: { id: string; nom: string; entreprise: string | null; telephone: string | null } | null = null;
   let intake: IntakeData | null = null;
@@ -98,14 +99,26 @@ export default async function ClientOnboardingPage({
         .eq("client_id", id)
         .order("created_at", { ascending: false }),
     ]);
-    const rawDocs = docs ?? [];
-    const signed = await Promise.all(
-      rawDocs.map(async (doc) => {
-        const { data } = await supabase!.storage.from("client-documents").createSignedUrl(doc.storage_path, 60 * 60);
-        return { ...doc, signed_url: data?.signedUrl ?? null };
-      }),
-    );
-    documents = signed;
+    const rawDocs = (docs ?? []) as Array<{
+      id: string;
+      doc_type: string;
+      file_name: string;
+      storage_path: string;
+      created_at: string;
+    }>;
+
+    if (profile?.role === "admin") {
+      const admin = createAdminClient();
+      const signed = await Promise.all(
+        rawDocs.map(async (doc) => {
+          const { data } = await admin.storage.from("client-documents").createSignedUrl(doc.storage_path, 60 * 60);
+          return { ...doc, signed_url: data?.signedUrl ?? null };
+        }),
+      );
+      documents = signed;
+    } else {
+      documents = rawDocs;
+    }
     signatures = signs ?? [];
   } else {
     clientData = { id, nom: "Client Demo", entreprise: "Entreprise Demo", telephone: "0600000000" };
@@ -160,17 +173,28 @@ export default async function ClientOnboardingPage({
               const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
               return (
                 <div key={doc.id} className="space-y-2 rounded-xl bg-zinc-100 p-2 text-sm dark:bg-zinc-800">
-                  {isImage && doc.signed_url ? (
-                    <ImageViewer
-                      src={doc.signed_url}
-                      alt={doc.file_name}
-                      width={900}
-                      height={600}
-                      className="h-40 w-full overflow-hidden rounded-lg"
-                    />
+                  {isImage ? (
+                    doc.signed_url ? (
+                      <ImageViewer
+                        src={doc.signed_url}
+                        alt={doc.file_name}
+                        width={900}
+                        height={600}
+                        className="h-40 w-full overflow-hidden rounded-lg"
+                      />
+                    ) : (
+                      <ImageViewer
+                        bucket="client-documents"
+                        path={doc.storage_path}
+                        alt={doc.file_name}
+                        width={900}
+                        height={600}
+                        className="h-40 w-full overflow-hidden rounded-lg"
+                      />
+                    )
                   ) : (
                     <div className="flex h-40 items-center justify-center rounded-lg bg-white/60 text-xs text-zinc-500 dark:bg-zinc-900/60">
-                      Apercu indisponible
+                      Aperçu indisponible
                     </div>
                   )}
                   <p className="truncate font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>

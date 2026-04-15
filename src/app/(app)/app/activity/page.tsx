@@ -2,14 +2,16 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockProjects, mockReports } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createActivityReportAction } from "@/features/activity-reports/actions";
 
-type ProjectRow = { id: string; nom: string; owner_id: string; assigned_to: string | null };
+type ProjectRow = { id: string; nom: string; owner_id: string; assigned_to: string | null; statut?: string | null };
 type ReportRow = {
   id: string;
   project_id: string;
@@ -41,17 +43,19 @@ export default async function ActivityPage() {
       nom: project.nom,
       owner_id: project.owner_id,
       assigned_to: project.assigned_to,
+      statut: project.statut,
     }));
     reports = mockReports;
   } else {
     const supabase = await createClient();
 
     const projectsQuery = isAdmin
-      ? supabase.from("projects").select("id,nom,owner_id,assigned_to").order("created_at", { ascending: false })
+      ? supabase.from("projects").select("id,nom,owner_id,assigned_to,statut").order("created_at", { ascending: false })
       : supabase
           .from("projects")
-          .select("id,nom,owner_id,assigned_to")
-          .or(`owner_id.eq.${user.id},assigned_to.eq.${user.id}`)
+          .select("id,nom,owner_id,assigned_to,statut")
+          .eq("assigned_to", user.id)
+          .eq("statut", "termine")
           .order("created_at", { ascending: false });
 
     const reportsQuery = isAdmin
@@ -70,13 +74,18 @@ export default async function ActivityPage() {
     const [{ data: projectsData }, { data: reportsData }] = await Promise.all([projectsQuery, reportsQuery]);
     projects = (projectsData ?? []) as ProjectRow[];
     const rawReports = (reportsData ?? []) as ReportRow[];
-    const signed = await Promise.all(
-      rawReports.map(async (report) => {
-        const { data } = await supabase.storage.from("activity-reports").createSignedUrl(report.screenshot_path, 60 * 60);
-        return { ...report, signed_url: data?.signedUrl ?? null };
-      }),
-    );
-    reports = signed;
+    if (isAdmin) {
+      const admin = createAdminClient();
+      const signed = await Promise.all(
+        rawReports.map(async (report) => {
+          const { data } = await admin.storage.from("activity-reports").createSignedUrl(report.screenshot_path, 60 * 60);
+          return { ...report, signed_url: data?.signedUrl ?? null };
+        }),
+      );
+      reports = signed;
+    } else {
+      reports = rawReports;
+    }
   }
 
   const projectNameById = Object.fromEntries(projects.map((project) => [project.id, project.nom]));
@@ -95,13 +104,17 @@ export default async function ActivityPage() {
       {!isAdmin ? (
         <Card>
           <h2 className="mb-3 font-semibold">Nouveau rapport</h2>
-          <form action={createActivityReportAction} className="grid gap-3 md:grid-cols-2">
+          <ConfirmForm
+            action={createActivityReportAction}
+            confirmMessage="Confirmer la publication de ce rapport ?"
+            className="grid gap-3 md:grid-cols-2"
+          >
             <select
               name="project_id"
               required
               className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             >
-              <option value="">Selectionner un projet</option>
+              <option value="">Sélectionner un projet</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.nom}
@@ -110,7 +123,7 @@ export default async function ActivityPage() {
             </select>
             <select
               name="status"
-              defaultValue="en cours"
+              defaultValue="termine"
               className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             >
               <option value="en cours">en cours</option>
@@ -126,7 +139,7 @@ export default async function ActivityPage() {
             <Button type="submit" variant="primary">
               Publier le rapport
             </Button>
-          </form>
+          </ConfirmForm>
         </Card>
       ) : null}
 
@@ -135,7 +148,7 @@ export default async function ActivityPage() {
           const screenshotUrl = isDemoMode ? report.screenshot_path : report.signed_url ?? "";
           return (
             <Card key={report.id} className="grid gap-3 md:grid-cols-[180px_1fr]">
-              {screenshotUrl ? (
+              {isDemoMode ? (
                 <ImageViewer
                   src={screenshotUrl}
                   alt="Capture du rapport"
@@ -143,10 +156,23 @@ export default async function ActivityPage() {
                   height={600}
                   className="h-32 w-full overflow-hidden rounded-xl"
                 />
+              ) : report.signed_url ? (
+                <ImageViewer
+                  src={report.signed_url}
+                  alt="Capture du rapport"
+                  width={900}
+                  height={600}
+                  className="h-32 w-full overflow-hidden rounded-xl"
+                />
               ) : (
-                <div className="flex h-32 items-center justify-center rounded-xl bg-zinc-100 text-xs text-zinc-500 dark:bg-zinc-900">
-                  Apercu indisponible
-                </div>
+                <ImageViewer
+                  bucket="activity-reports"
+                  path={report.screenshot_path}
+                  alt="Capture du rapport"
+                  width={900}
+                  height={600}
+                  className="h-32 w-full overflow-hidden rounded-xl"
+                />
               )}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
