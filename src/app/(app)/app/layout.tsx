@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { AppSplash } from "@/components/app-splash";
 import { getCurrentProfile } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -9,5 +10,10 @@ export default async function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const profile = await getCurrentProfile();
-  return <AppShell profile={profile}>{children}</AppShell>;
+  return (
+    <>
+      <AppSplash />
+      <AppShell profile={profile}>{children}</AppShell>
+    </>
+  );
 }
