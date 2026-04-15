@@ -1,7 +1,8 @@
-import Image from "next/image";
+import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockProjects, mockReports } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -17,12 +18,17 @@ type ReportRow = {
   screenshot_path: string;
   status: "en cours" | "termine";
   created_at: string;
+  signed_url?: string | null;
 };
 
 export default async function ActivityPage() {
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
+  const isCommercial = profile?.role === "commercial";
+  if (isCommercial) {
+    redirect("/app?forbidden=1");
+  }
 
   let projects: ProjectRow[] = [];
   let reports: ReportRow[] = [];
@@ -59,7 +65,14 @@ export default async function ActivityPage() {
 
     const [{ data: projectsData }, { data: reportsData }] = await Promise.all([projectsQuery, reportsQuery]);
     projects = (projectsData ?? []) as ProjectRow[];
-    reports = (reportsData ?? []) as ReportRow[];
+    const rawReports = (reportsData ?? []) as ReportRow[];
+    const signed = await Promise.all(
+      rawReports.map(async (report) => {
+        const { data } = await supabase.storage.from("activity-reports").createSignedUrl(report.screenshot_path, 60 * 60);
+        return { ...report, signed_url: data?.signedUrl ?? null };
+      }),
+    );
+    reports = signed;
   }
 
   const projectNameById = Object.fromEntries(projects.map((project) => [project.id, project.nom]));
@@ -69,60 +82,68 @@ export default async function ActivityPage() {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Rapports d activite</h1>
         <p className="text-sm text-zinc-500">
-          Publiez le travail effectue par projet avec capture obligatoire et statut d avancement.
+          {isAdmin
+            ? "Vue admin: consultez tous les rapports et preuves envoyes par les equipes."
+            : "Publiez le travail effectue par projet avec capture obligatoire et statut d avancement."}
         </p>
       </div>
 
-      <Card>
-        <h2 className="mb-3 font-semibold">Nouveau rapport</h2>
-        <form action={createActivityReportAction} className="grid gap-3 md:grid-cols-2">
-          <select
-            name="project_id"
-            required
-            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            <option value="">Selectionner un projet</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.nom}
-              </option>
-            ))}
-          </select>
-          <select
-            name="status"
-            defaultValue="en cours"
-            className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            <option value="en cours">en cours</option>
-            <option value="termine">termine</option>
-          </select>
-          <textarea
-            name="description"
-            required
-            className="min-h-28 rounded-lg border border-zinc-200/80 bg-white/90 p-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 md:col-span-2"
-            placeholder="Decrivez le travail effectue..."
-          />
-          <Input name="screenshot" type="file" accept="image/*" required className="md:col-span-2" />
-          <Button type="submit" variant="primary">
-            Publier le rapport
-          </Button>
-        </form>
-      </Card>
+      {!isAdmin ? (
+        <Card>
+          <h2 className="mb-3 font-semibold">Nouveau rapport</h2>
+          <form action={createActivityReportAction} className="grid gap-3 md:grid-cols-2">
+            <select
+              name="project_id"
+              required
+              className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <option value="">Selectionner un projet</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.nom}
+                </option>
+              ))}
+            </select>
+            <select
+              name="status"
+              defaultValue="en cours"
+              className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <option value="en cours">en cours</option>
+              <option value="termine">termine</option>
+            </select>
+            <textarea
+              name="description"
+              required
+              className="min-h-28 rounded-lg border border-zinc-200/80 bg-white/90 p-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 md:col-span-2"
+              placeholder="Decrivez le travail effectue..."
+            />
+            <Input name="screenshot" type="file" accept="image/*" required className="md:col-span-2" />
+            <Button type="submit" variant="primary">
+              Publier le rapport
+            </Button>
+          </form>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3">
         {reports.map((report) => {
-          const screenshotUrl = isDemoMode
-            ? report.screenshot_path
-            : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/activity-reports/${report.screenshot_path}`;
+          const screenshotUrl = isDemoMode ? report.screenshot_path : report.signed_url ?? "";
           return (
             <Card key={report.id} className="grid gap-3 md:grid-cols-[180px_1fr]">
-              <Image
-                src={screenshotUrl}
-                alt="Capture du rapport"
-                width={180}
-                height={120}
-                className="h-32 w-full rounded-xl object-cover"
-              />
+              {screenshotUrl ? (
+                <ImageViewer
+                  src={screenshotUrl}
+                  alt="Capture du rapport"
+                  width={900}
+                  height={600}
+                  className="h-32 w-full overflow-hidden rounded-xl"
+                />
+              ) : (
+                <div className="flex h-32 items-center justify-center rounded-xl bg-zinc-100 text-xs text-zinc-500 dark:bg-zinc-900">
+                  Apercu indisponible
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium uppercase dark:bg-zinc-800">

@@ -9,6 +9,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function createActivityReportAction(formData: FormData) {
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
+  if (!profile || profile.role === "admin" || profile.role === "commercial") {
+    return;
+  }
 
   const projectId = String(formData.get("project_id") ?? "");
   const description = String(formData.get("description") ?? "");
@@ -27,16 +30,14 @@ export async function createActivityReportAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  if (profile?.role !== "admin") {
-    const { data: project } = await supabase
-      .from("projects")
-      .select("id,owner_id,assigned_to")
-      .eq("id", projectId)
-      .single();
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id,owner_id,assigned_to")
+    .eq("id", projectId)
+    .single();
 
-    const allowed = project && (project.owner_id === user.id || project.assigned_to === user.id);
-    if (!allowed) return;
-  }
+  const allowed = project && (project.owner_id === user.id || project.assigned_to === user.id);
+  if (!allowed) return;
 
   const path = `${user.id}/${projectId}/${Date.now()}-${screenshot.name}`;
   const adminClient = createAdminClient();
