@@ -30,6 +30,7 @@ export type Client = {
   email: string;
   statut: ClientStatus;
   owner_id: string;
+  intake_data?: Record<string, unknown> | null;
   created_at: string;
 };
 

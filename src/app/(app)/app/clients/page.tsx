@@ -17,6 +17,7 @@ type ClientListRow = {
   email: string;
   statut: string;
   owner_id?: string;
+  intake_data?: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -58,7 +59,7 @@ export default async function ClientsPage({
 
     let query = supabase
       .from("clients")
-      .select("id,nom,entreprise,telephone,email,statut,created_at,owner_id")
+      .select("id,nom,entreprise,telephone,email,statut,created_at,owner_id,intake_data")
       .order("created_at", { ascending: false });
 
     if (!isAdmin) {
@@ -81,6 +82,42 @@ export default async function ClientsPage({
   const customers = clients.filter((c) => c.statut === "client");
   const other = clients.filter((c) => !["prospect", "en cours", "client"].includes(c.statut));
   const orderedClients = [...prospects, ...enCours, ...customers, ...other];
+  let ownerLabelById: Record<string, string> = {};
+
+  if (isAdmin && !isDemoMode) {
+    const ownerIds = Array.from(new Set((clients ?? []).map((c) => c.owner_id).filter(Boolean))) as string[];
+    if (ownerIds.length) {
+      const supabase = await createClient();
+      const { data: owners } = await supabase.from("profiles").select("id,full_name,email").in("id", ownerIds);
+      ownerLabelById = Object.fromEntries(
+        (owners ?? []).map((o) => [o.id, o.full_name || o.email || o.id.slice(0, 8)]),
+      );
+    }
+  }
+
+  const nowMs = new Date().getTime();
+  const subscriptions = orderedClients
+    .filter((c) => c.statut === "client")
+    .map((c) => {
+      const intake = (c.intake_data ?? {}) as Record<string, unknown>;
+      const sub = (intake.subscription ?? {}) as Record<string, unknown>;
+      const plan = (sub.plan as string | undefined) ?? (intake.subscription_plan as string | undefined) ?? "";
+      const startedAt = (sub.started_at as string | undefined) ?? (intake.validated_at as string | undefined) ?? null;
+      const endsAt = (sub.ends_at as string | undefined) ?? null;
+      const endsMs = endsAt ? new Date(endsAt).getTime() : null;
+      const daysLeft =
+        endsMs && Number.isFinite(endsMs) ? Math.max(0, Math.ceil((endsMs - nowMs) / (24 * 60 * 60 * 1000))) : null;
+      return {
+        id: c.id,
+        client: c.nom,
+        entreprise: c.entreprise,
+        owner_id: c.owner_id ?? null,
+        plan,
+        startedAt,
+        endsAt,
+        daysLeft,
+      };
+    });
 
   return (
     <div className="space-y-5">
@@ -229,6 +266,52 @@ export default async function ClientsPage({
           <p className="text-2xl font-semibold tracking-tight">{customers.length}</p>
         </div>
       </Card>
+
+      {isAdmin ? (
+        <Card className="overflow-auto">
+          <h2 className="mb-3 text-base font-semibold">Abonnements (clients validés)</h2>
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="text-left text-zinc-500">
+                <th className="py-2">Client</th>
+                <th>Entreprise</th>
+                <th>Commercial</th>
+                <th>Formule</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Jours restants</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subscriptions.map((s) => (
+                <tr
+                  key={s.id}
+                  className="border-t border-zinc-200/80 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
+                >
+                  <td className="py-2 font-medium">{s.client}</td>
+                  <td>{s.entreprise ?? "-"}</td>
+                  <td className="text-xs text-zinc-500">{s.owner_id ? ownerLabelById[s.owner_id] ?? s.owner_id.slice(0, 8) : "-"}</td>
+                  <td className="text-xs">{s.plan ? s.plan.replaceAll("_", " ") : "-"}</td>
+                  <td className="text-xs text-zinc-500">
+                    {s.startedAt ? new Date(s.startedAt).toLocaleString("fr-FR") : "-"}
+                  </td>
+                  <td className="text-xs text-zinc-500">{s.endsAt ? new Date(s.endsAt).toLocaleString("fr-FR") : "-"}</td>
+                  <td className="text-xs font-semibold">
+                    {s.daysLeft === null ? "-" : s.daysLeft === 0 ? "Expiré" : `J-${s.daysLeft}`}
+                  </td>
+                </tr>
+              ))}
+              {subscriptions.length === 0 ? (
+                <tr>
+                  <td className="py-3 text-sm text-zinc-500" colSpan={7}>
+                    Aucun abonnement actif pour le moment.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3 md:hidden">
         {[
