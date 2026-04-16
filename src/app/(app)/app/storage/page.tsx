@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ConfirmForm } from "@/components/confirm-form";
 import { ClientFilesUploader } from "@/components/uploaders";
 import { ImageViewer } from "@/components/image-viewer";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -9,6 +11,7 @@ import { mockClients, mockFiles } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { deleteProofPermanentlyAction, moveProofToTrashAction, restoreProofFromTrashAction } from "@/features/storage/actions";
 import type { Role } from "@/lib/types";
 
 type FileRow = {
@@ -43,7 +46,7 @@ type ScreenshotRow = {
 export default async function StoragePage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string; q?: string }>;
+  searchParams: Promise<{ user?: string; q?: string; trash?: string }>;
 }) {
   const LIMIT_FILES = 60;
   const LIMIT_DOCS = 60;
@@ -58,6 +61,7 @@ export default async function StoragePage({
     redirect("/app?forbidden=1");
   }
   const qp = await searchParams;
+  const trashMode = qp.trash === "1" || qp.trash === "true";
   let clients = mockClients.map((c) => ({ id: c.id, nom: c.nom }));
   let files: FileRow[] = isDemoMode ? ((mockFiles as unknown) as FileRow[]) : [];
   let documents: DocumentRow[] = [];
@@ -103,12 +107,14 @@ export default async function StoragePage({
           .from("files_index")
           .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
           .eq("owner_id", user.id)
+          .not("storage_path", "like", "trash/%")
           .order("created_at", { ascending: false })
           .limit(LIMIT_FILES),
         db
           .from("client_documents")
           .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
           .eq("owner_id", user.id)
+          .not("storage_path", "like", "trash/%")
           .order("created_at", { ascending: false })
           .limit(LIMIT_DOCS),
       ]);
@@ -120,18 +126,36 @@ export default async function StoragePage({
       if (selectedUser.role === "commercial") {
         const [{ data: c }, { data: f }, { data: d }] = await Promise.all([
           db.from("clients").select("id,nom").eq("owner_id", selectedUser.id).order("nom"),
-          db
-            .from("files_index")
-            .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
-            .eq("owner_id", selectedUser.id)
-            .order("created_at", { ascending: false })
-            .limit(LIMIT_FILES),
-          db
-            .from("client_documents")
-            .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
-            .eq("owner_id", selectedUser.id)
-            .order("created_at", { ascending: false })
-            .limit(LIMIT_DOCS),
+          trashMode
+            ? db
+                .from("files_index")
+                .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
+                .eq("owner_id", selectedUser.id)
+                .like("storage_path", "trash/%")
+                .order("created_at", { ascending: false })
+                .limit(LIMIT_FILES)
+            : db
+                .from("files_index")
+                .select("id,file_name,mime_type,storage_path,client_id,created_at,owner_id")
+                .eq("owner_id", selectedUser.id)
+                .not("storage_path", "like", "trash/%")
+                .order("created_at", { ascending: false })
+                .limit(LIMIT_FILES),
+          trashMode
+            ? db
+                .from("client_documents")
+                .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
+                .eq("owner_id", selectedUser.id)
+                .like("storage_path", "trash/%")
+                .order("created_at", { ascending: false })
+                .limit(LIMIT_DOCS)
+            : db
+                .from("client_documents")
+                .select("id,owner_id,client_id,doc_type,file_name,storage_path,created_at")
+                .eq("owner_id", selectedUser.id)
+                .not("storage_path", "like", "trash/%")
+                .order("created_at", { ascending: false })
+                .limit(LIMIT_DOCS),
         ]);
         clients = c ?? [];
         clientsById = Object.fromEntries((clients ?? []).map((x) => [x.id, x.nom]));
@@ -154,12 +178,18 @@ export default async function StoragePage({
         );
         signedClientDocs = Object.fromEntries(docUrls.filter((x) => x.url).map((x) => [x.path, x.url]));
       } else {
-        const { data: s } = await db
+        const reportsQuery = db
           .from("activity_reports")
           .select("id,user_id,project_id,description,screenshot_path,created_at")
           .eq("user_id", selectedUser.id)
           .order("created_at", { ascending: false })
           .limit(LIMIT_SCREENS);
+        if (trashMode) {
+          reportsQuery.like("screenshot_path", "trash/%");
+        } else {
+          reportsQuery.not("screenshot_path", "like", "trash/%");
+        }
+        const { data: s } = await reportsQuery;
         screenshots = (s ?? []) as ScreenshotRow[];
 
         const projectIds = Array.from(new Set((screenshots ?? []).map((x) => x.project_id).filter(Boolean)));
@@ -209,6 +239,20 @@ export default async function StoragePage({
                 Dossiers
               </span>
             </Link>
+            {selectedUser ? (
+              <Link
+                href={
+                  trashMode
+                    ? `/app/storage?user=${encodeURIComponent(selectedUser.id)}`
+                    : `/app/storage?user=${encodeURIComponent(selectedUser.id)}&trash=1`
+                }
+                className="inline-flex"
+              >
+                <span className="rounded-lg border border-zinc-200/80 bg-white/90 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950/85">
+                  {trashMode ? "Retour" : "Corbeille"}
+                </span>
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -296,6 +340,7 @@ export default async function StoragePage({
                           {images.map((file) => {
                             const signedUrl = signedClientFiles[file.storage_path] ?? "";
                             const displayName = `${clientName} - ${file.file_name}`;
+                            const isTrashed = file.storage_path.startsWith("trash/");
                             return (
                               <Card key={file.id} className="space-y-2">
                                 {signedUrl ? (
@@ -312,6 +357,40 @@ export default async function StoragePage({
                                   </div>
                                 )}
                                 <p className="truncate text-sm font-medium">{displayName}</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {isTrashed ? (
+                                    <>
+                                      <ConfirmForm
+                                        action={restoreProofFromTrashAction}
+                                        confirmMessage="Restaurer ce fichier depuis la corbeille ?"
+                                      >
+                                        <input type="hidden" name="kind" value="client-files" />
+                                        <input type="hidden" name="id" value={file.id} />
+                                        <Button type="submit" variant="ghost">
+                                          Restaurer
+                                        </Button>
+                                      </ConfirmForm>
+                                      <ConfirmForm
+                                        action={deleteProofPermanentlyAction}
+                                        confirmMessage="Supprimer definitivement ce fichier ?"
+                                      >
+                                        <input type="hidden" name="kind" value="client-files" />
+                                        <input type="hidden" name="id" value={file.id} />
+                                        <Button type="submit" variant="danger">
+                                          Suppr.
+                                        </Button>
+                                      </ConfirmForm>
+                                    </>
+                                  ) : (
+                                    <ConfirmForm action={moveProofToTrashAction} confirmMessage="Mettre ce fichier a la corbeille ?">
+                                      <input type="hidden" name="kind" value="client-files" />
+                                      <input type="hidden" name="id" value={file.id} />
+                                      <Button type="submit" variant="secondary">
+                                        Corbeille
+                                      </Button>
+                                    </ConfirmForm>
+                                  )}
+                                </div>
                               </Card>
                             );
                           })}
@@ -324,12 +403,47 @@ export default async function StoragePage({
                           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             {others.map((file) => {
                               const displayName = `${clientName} - ${file.file_name}`;
+                              const isTrashed = file.storage_path.startsWith("trash/");
                               return (
                                 <Card key={file.id} className="space-y-2">
                                   <div className="flex h-36 items-center justify-center rounded-md bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900">
                                     {file.mime_type ?? "Fichier"}
                                   </div>
                                   <p className="truncate text-sm font-medium">{displayName}</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {isTrashed ? (
+                                      <>
+                                        <ConfirmForm
+                                          action={restoreProofFromTrashAction}
+                                          confirmMessage="Restaurer ce fichier depuis la corbeille ?"
+                                        >
+                                          <input type="hidden" name="kind" value="client-files" />
+                                          <input type="hidden" name="id" value={file.id} />
+                                          <Button type="submit" variant="ghost">
+                                            Restaurer
+                                          </Button>
+                                        </ConfirmForm>
+                                        <ConfirmForm
+                                          action={deleteProofPermanentlyAction}
+                                          confirmMessage="Supprimer definitivement ce fichier ?"
+                                        >
+                                          <input type="hidden" name="kind" value="client-files" />
+                                          <input type="hidden" name="id" value={file.id} />
+                                          <Button type="submit" variant="danger">
+                                            Suppr.
+                                          </Button>
+                                        </ConfirmForm>
+                                      </>
+                                    ) : (
+                                      <ConfirmForm action={moveProofToTrashAction} confirmMessage="Mettre ce fichier a la corbeille ?">
+                                        <input type="hidden" name="kind" value="client-files" />
+                                        <input type="hidden" name="id" value={file.id} />
+                                        <Button type="submit" variant="secondary">
+                                          Corbeille
+                                        </Button>
+                                      </ConfirmForm>
+                                    )}
+                                  </div>
                                 </Card>
                               );
                             })}
@@ -343,6 +457,7 @@ export default async function StoragePage({
                           {clientDocs.map((doc) => {
                             const signedUrl = signedClientDocs[doc.storage_path] ?? "";
                             const isImage = /\.(png|jpe?g|webp|gif)$/i.test(doc.file_name);
+                            const isTrashed = doc.storage_path.startsWith("trash/");
                             return (
                               <Card key={doc.id} className="space-y-2">
                                 {isImage && signedUrl ? (
@@ -360,6 +475,40 @@ export default async function StoragePage({
                                 )}
                                 <p className="truncate text-sm font-medium">{doc.doc_type.replaceAll("_", " ").toUpperCase()}</p>
                                 <p className="truncate text-xs text-zinc-500">{doc.file_name}</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {isTrashed ? (
+                                    <>
+                                      <ConfirmForm
+                                        action={restoreProofFromTrashAction}
+                                        confirmMessage="Restaurer ce document depuis la corbeille ?"
+                                      >
+                                        <input type="hidden" name="kind" value="client-documents" />
+                                        <input type="hidden" name="id" value={doc.id} />
+                                        <Button type="submit" variant="ghost">
+                                          Restaurer
+                                        </Button>
+                                      </ConfirmForm>
+                                      <ConfirmForm
+                                        action={deleteProofPermanentlyAction}
+                                        confirmMessage="Supprimer definitivement ce document ?"
+                                      >
+                                        <input type="hidden" name="kind" value="client-documents" />
+                                        <input type="hidden" name="id" value={doc.id} />
+                                        <Button type="submit" variant="danger">
+                                          Suppr.
+                                        </Button>
+                                      </ConfirmForm>
+                                    </>
+                                  ) : (
+                                    <ConfirmForm action={moveProofToTrashAction} confirmMessage="Mettre ce document a la corbeille ?">
+                                      <input type="hidden" name="kind" value="client-documents" />
+                                      <input type="hidden" name="id" value={doc.id} />
+                                      <Button type="submit" variant="secondary">
+                                        Corbeille
+                                      </Button>
+                                    </ConfirmForm>
+                                  )}
+                                </div>
                               </Card>
                             );
                           })}
@@ -389,6 +538,7 @@ export default async function StoragePage({
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {shots.map((item) => {
                       const signedUrl = signedActivityReports[item.screenshot_path] ?? "";
+                      const isTrashed = item.screenshot_path.startsWith("trash/");
                       return (
                         <Card key={item.id} className="space-y-2">
                           {signedUrl ? (
@@ -405,6 +555,40 @@ export default async function StoragePage({
                             </div>
                           )}
                           <p className="truncate text-xs text-zinc-500">{item.description}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isTrashed ? (
+                              <>
+                                <ConfirmForm
+                                  action={restoreProofFromTrashAction}
+                                  confirmMessage="Restaurer cette preuve depuis la corbeille ?"
+                                >
+                                  <input type="hidden" name="kind" value="activity-reports" />
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <Button type="submit" variant="ghost">
+                                    Restaurer
+                                  </Button>
+                                </ConfirmForm>
+                                <ConfirmForm
+                                  action={deleteProofPermanentlyAction}
+                                  confirmMessage="Supprimer definitivement cette preuve ?"
+                                >
+                                  <input type="hidden" name="kind" value="activity-reports" />
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <Button type="submit" variant="danger">
+                                    Suppr.
+                                  </Button>
+                                </ConfirmForm>
+                              </>
+                            ) : (
+                              <ConfirmForm action={moveProofToTrashAction} confirmMessage="Mettre cette preuve a la corbeille ?">
+                                <input type="hidden" name="kind" value="activity-reports" />
+                                <input type="hidden" name="id" value={item.id} />
+                                <Button type="submit" variant="secondary">
+                                  Corbeille
+                                </Button>
+                              </ConfirmForm>
+                            )}
+                          </div>
                         </Card>
                       );
                     })}

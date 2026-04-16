@@ -21,6 +21,7 @@ type NotificationItem = {
 export function NotificationBell() {
   const supabase = useMemo(() => (isDemoMode ? null : createClient()), []);
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"inbox" | "trash">("inbox");
   const [items, setItems] = useState<NotificationItem[]>(
     isDemoMode ? (mockNotifications as NotificationItem[]) : [],
   );
@@ -56,20 +57,28 @@ export function NotificationBell() {
           item.owner_id === currentUserId,
       );
 
-      const { data: reads } = await supabase
+      const readsResult = await supabase
         .from("notification_reads")
-        .select("notification_id")
+        .select("notification_id,trashed_at,deleted_at")
         .eq("user_id", currentUserId);
-      const readSet = new Set((reads ?? []).map((r) => r.notification_id));
+      const readsFallbackResult = readsResult.error
+        ? await supabase.from("notification_reads").select("notification_id").eq("user_id", currentUserId)
+        : null;
+      const reads = (readsResult.error ? readsFallbackResult?.data : readsResult.data) ?? [];
+      const readSet = new Set(reads.map((r) => r.notification_id));
+      const trashedSet = new Set(reads.filter((r) => Boolean((r as { trashed_at?: string | null }).trashed_at)).map((r) => r.notification_id));
+      const deletedSet = new Set(reads.filter((r) => Boolean((r as { deleted_at?: string | null }).deleted_at)).map((r) => r.notification_id));
 
-      setItems(
-        filtered
-          .slice(0, 10)
-          .map((item) => ({
-            ...item,
-            read: item.read || readSet.has(item.id),
-          })),
-      );
+      const visible = filtered
+        .filter((item) => !deletedSet.has(item.id))
+        .filter((item) => (view === "trash" ? trashedSet.has(item.id) : !trashedSet.has(item.id)))
+        .slice(0, 10)
+        .map((item) => ({
+          ...item,
+          read: item.read || readSet.has(item.id),
+        }));
+
+      setItems(visible);
 
       if (currentRole && !["admin", "commercial"].includes(currentRole)) {
         const { count } = await supabase
@@ -103,7 +112,7 @@ export function NotificationBell() {
     return () => {
       supabase.removeChannel(channel).catch(() => undefined);
     };
-  }, [supabase]);
+  }, [supabase, view]);
 
   const unread = items.filter((n) => !n.read).length;
   const badgeCount = unread + pendingProjects;
@@ -129,6 +138,59 @@ export function NotificationBell() {
     setItems((prev) => prev.map((item) => ({ ...item, read: true })));
   }
 
+  async function moveToTrash(notificationId: string) {
+    if (!supabase) {
+      setItems((prev) => prev.filter((i) => i.id !== notificationId));
+      return;
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const now = new Date().toISOString();
+    const result = await supabase.from("notification_reads").upsert({
+      notification_id: notificationId,
+      user_id: user.id,
+      read_at: now,
+      trashed_at: now,
+      deleted_at: null,
+    });
+    if (result.error) {
+      await supabase.from("notification_reads").upsert({ notification_id: notificationId, user_id: user.id });
+    }
+    setItems((prev) => prev.filter((i) => i.id !== notificationId));
+  }
+
+  async function restoreFromTrash(notificationId: string) {
+    if (!supabase) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from("notification_reads")
+      .update({ trashed_at: null, deleted_at: null })
+      .eq("notification_id", notificationId)
+      .eq("user_id", user.id);
+    setItems((prev) => prev.filter((i) => i.id !== notificationId));
+  }
+
+  async function deleteForever(notificationId: string) {
+    if (!supabase) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const now = new Date().toISOString();
+    const result = await supabase
+      .from("notification_reads")
+      .upsert({ notification_id: notificationId, user_id: user.id, deleted_at: now, trashed_at: null, read_at: now });
+    if (result.error) {
+      await supabase.from("notification_reads").upsert({ notification_id: notificationId, user_id: user.id });
+    }
+    setItems((prev) => prev.filter((i) => i.id !== notificationId));
+  }
+
   return (
     <div className="relative">
       <Button type="button" variant="ghost" onClick={() => setOpen((v) => !v)} className="relative h-10 w-10 p-0">
@@ -142,10 +204,17 @@ export function NotificationBell() {
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-[min(92vw,22rem)] rounded-2xl border border-zinc-200/80 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold">Notifications</p>
-            <Button type="button" variant="ghost" onClick={() => void markAllRead()}>
-              Tout lire
-            </Button>
+            <p className="text-sm font-semibold">{view === "trash" ? "Corbeille" : "Notifications"}</p>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="ghost" onClick={() => setView((v) => (v === "trash" ? "inbox" : "trash"))}>
+                {view === "trash" ? "Boite" : "Corbeille"}
+              </Button>
+              {view === "inbox" ? (
+                <Button type="button" variant="ghost" onClick={() => void markAllRead()}>
+                  Tout lire
+                </Button>
+              ) : null}
+            </div>
           </div>
           <div className="space-y-2">
             {pendingProjects > 0 ? (
@@ -156,8 +225,26 @@ export function NotificationBell() {
             {items.length === 0 ? <p className="text-sm text-zinc-500">Aucune notification.</p> : null}
             {items.map((item) => (
               <div key={item.id} className="rounded-xl bg-zinc-50 p-2 text-sm dark:bg-zinc-900">
-                {item.title ? <p className="font-semibold">{item.title}</p> : null}
-                {item.message}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    {item.title ? <p className="truncate font-semibold">{item.title}</p> : null}
+                    <p className="text-sm">{item.message}</p>
+                  </div>
+                  {view === "trash" ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" variant="ghost" onClick={() => void restoreFromTrash(item.id)}>
+                        Restaurer
+                      </Button>
+                      <Button type="button" variant="danger" onClick={() => void deleteForever(item.id)}>
+                        Suppr.
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="ghost" onClick={() => void moveToTrash(item.id)}>
+                      Suppr.
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

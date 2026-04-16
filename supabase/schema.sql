@@ -177,6 +177,9 @@ create table if not exists public.notification_reads (
   unique(notification_id, user_id)
 );
 
+alter table public.notification_reads add column if not exists trashed_at timestamptz;
+alter table public.notification_reads add column if not exists deleted_at timestamptz;
+
 -- Trigger profile creation
 create or replace function public.handle_new_user()
 returns trigger
