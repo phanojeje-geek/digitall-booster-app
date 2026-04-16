@@ -28,6 +28,15 @@ export function NotificationBell() {
   const [pendingProjects, setPendingProjects] = useState(0);
 
   useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
     if (!supabase) return;
 
     let currentUserId = "";
@@ -202,51 +211,71 @@ export function NotificationBell() {
         ) : null}
       </Button>
       {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-[min(92vw,22rem)] rounded-2xl border border-zinc-200/80 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold">{view === "trash" ? "Corbeille" : "Notifications"}</p>
-            <div className="flex items-center gap-1">
-              <Button type="button" variant="ghost" onClick={() => setView((v) => (v === "trash" ? "inbox" : "trash"))}>
-                {view === "trash" ? "Boite" : "Corbeille"}
-              </Button>
-              {view === "inbox" ? (
-                <Button type="button" variant="ghost" onClick={() => void markAllRead()}>
-                  Tout lire
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <div className="space-y-2">
-            {pendingProjects > 0 ? (
-              <div className="rounded-xl bg-indigo-50 p-2 text-sm text-indigo-900">
-                Projets en attente: <span className="font-semibold">{pendingProjects}</span>
-              </div>
-            ) : null}
-            {items.length === 0 ? <p className="text-sm text-zinc-500">Aucune notification.</p> : null}
-            {items.map((item) => (
-              <div key={item.id} className="rounded-xl bg-zinc-50 p-2 text-sm dark:bg-zinc-900">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    {item.title ? <p className="truncate font-semibold">{item.title}</p> : null}
-                    <p className="text-sm">{item.message}</p>
-                  </div>
-                  {view === "trash" ? (
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button type="button" variant="ghost" onClick={() => void restoreFromTrash(item.id)}>
-                        Restaurer
-                      </Button>
-                      <Button type="button" variant="danger" onClick={() => void deleteForever(item.id)}>
-                        Suppr.
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button type="button" variant="ghost" onClick={() => void moveToTrash(item.id)}>
-                      Suppr.
+        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
+          <div
+            className="fixed right-3 top-14 w-[min(94vw,26rem)] overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 sm:top-16"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/95 p-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{view === "trash" ? "Corbeille" : "Notifications"}</p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setView((v) => (v === "trash" ? "inbox" : "trash"))}
+                  >
+                    {view === "trash" ? "Boite" : "Corbeille"}
+                  </Button>
+                  {view === "inbox" ? (
+                    <Button type="button" variant="ghost" onClick={() => void markAllRead()}>
+                      Tout lire
                     </Button>
-                  )}
+                  ) : null}
+                  <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                    Fermer
+                  </Button>
                 </div>
               </div>
-            ))}
+              {pendingProjects > 0 ? (
+                <div className="mt-2 rounded-xl bg-indigo-50 p-2 text-sm text-indigo-900">
+                  Projets en attente: <span className="font-semibold">{pendingProjects}</span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="max-h-[min(70vh,34rem)] overflow-y-auto p-3">
+              <div className="space-y-2">
+                {items.length === 0 ? <p className="text-sm text-zinc-500">Aucune notification.</p> : null}
+                {items.map((item) => (
+                  <div key={item.id} className="rounded-xl bg-zinc-50 p-2 text-sm dark:bg-zinc-900">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        {item.title ? <p className="truncate font-semibold">{item.title}</p> : null}
+                        <p className="whitespace-pre-wrap wrap-break-word text-sm">{item.message}</p>
+                      </div>
+                      {view === "trash" ? (
+                        <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-stretch sm:gap-1">
+                          <Button type="button" variant="ghost" onClick={() => void restoreFromTrash(item.id)}>
+                            Restaurer
+                          </Button>
+                          <Button type="button" variant="danger" onClick={() => void deleteForever(item.id)}>
+                            Suppr.
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end sm:block">
+                          <Button type="button" variant="ghost" onClick={() => void moveToTrash(item.id)}>
+                            Suppr.
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
