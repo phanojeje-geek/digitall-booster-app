@@ -36,6 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local android/jdk tooling (do not commit)
+/tools/android-sdk/
+/tools/temurin-jdk17/
+/tools/*.zip
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
