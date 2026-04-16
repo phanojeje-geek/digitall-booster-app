@@ -1,5 +1,3 @@
-"use server";
-
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -80,4 +78,3 @@ export async function GET(request: Request) {
 
   return Response.json({ ok: true, processed, notified });
 }
-
