@@ -7,9 +7,14 @@
     "build": "next build --webpack",
     "postbuild": "node -e \"const fs=require('fs');const path=require('path');const server=path.join(process.cwd(),'.next','server');const src=path.join(server,'src','middleware.js');if(!fs.existsSync(src)){process.exit(0);}const dst=path.join(server,'middleware.js');fs.copyFileSync(src,dst);const srcMap=path.join(server,'src','middleware.js.map');const dstMap=path.join(server,'middleware.js.map');if(fs.existsSync(srcMap)) fs.copyFileSync(srcMap,dstMap);const nft=path.join(server,'middleware.js.nft.json');if(!fs.existsSync(nft)) fs.writeFileSync(nft, JSON.stringify({version:1,files:[]}), 'utf8');\"",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "clsx": "^2.1.1",
