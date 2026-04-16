@@ -85,14 +85,10 @@ export function AppShell({
                 </span>
                 <NotificationBell />
                 <ConfirmForm action={signOutAction} confirmMessage="Confirmer la deconnexion ?">
-                  <>
-                    <Button type="submit" variant="ghost" className="hidden sm:inline-flex">
-                      Deconnexion
-                    </Button>
-                    <Button type="submit" variant="ghost" className="sm:hidden" aria-label="Deconnexion">
-                      <LogOut size={16} />
-                    </Button>
-                  </>
+                  <Button type="submit" variant="ghost" className="inline-flex items-center gap-2" aria-label="Deconnexion">
+                    <LogOut size={16} />
+                    <span className="hidden sm:inline">Deconnexion</span>
+                  </Button>
                 </ConfirmForm>
               </div>
             </div>

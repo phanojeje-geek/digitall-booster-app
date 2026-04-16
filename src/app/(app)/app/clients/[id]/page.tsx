@@ -55,6 +55,7 @@ export default async function ClientOnboardingPage({
   const user = await getCurrentUser();
   const profile = await getCurrentProfile();
   const canEdit = profile?.role === "commercial";
+  const canDownloadPdf = profile?.role === "admin";
 
   let clientData: { id: string; nom: string; entreprise: string | null; telephone: string | null } | null = null;
   let intake: IntakeData | null = null;
@@ -213,6 +214,13 @@ export default async function ClientOnboardingPage({
               <SignaturePad />
               <Button type="submit">Enregistrer la signature</Button>
             </form>
+          ) : null}
+          {canDownloadPdf ? (
+            <Link href={`/api/clients/${id}/signature`} className="mb-4 inline-flex">
+              <Button type="button" variant="secondary">
+                Télécharger PDF
+              </Button>
+            </Link>
           ) : null}
           <div className="space-y-2">
             {signatures.length === 0 ? <p className="text-sm text-zinc-500">Aucune signature.</p> : null}

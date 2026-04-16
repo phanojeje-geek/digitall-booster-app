@@ -84,10 +84,8 @@ export default async function ClientsPage({
   }
 
   const prospects = clients.filter((c) => c.statut === "prospect");
-  const enCours = clients.filter((c) => c.statut === "en cours");
   const customers = clients.filter((c) => c.statut === "client");
-  const other = clients.filter((c) => !["prospect", "en cours", "client"].includes(c.statut));
-  const orderedClients = [...prospects, ...enCours, ...customers, ...other];
+  const orderedClients = [...customers, ...prospects];
   let ownerLabelById: Record<string, string> = {};
 
   if (isAdmin && !isDemoMode) {
@@ -162,13 +160,13 @@ export default async function ClientsPage({
       </div>
       {isCommercial ? (
         <Card>
-          <h2 className="mb-3 font-semibold">Fiche d inscription premium</h2>
+          <h2 className="mb-3 font-semibold">Enregistrement client</h2>
           <ConfirmForm
             action={createClientAction}
-            confirmMessage="Confirmer l ajout de ce client ?"
+            confirmMessage="Confirmer l enregistrement de ce client ?"
             className="grid gap-3 md:grid-cols-3"
           >
-            <input type="hidden" name="statut" value="prospect" />
+            <input type="hidden" name="statut" value="client" />
             <div className="md:col-span-3">
               <p className="text-sm font-semibold">Informations sur l entreprise</p>
             </div>
@@ -251,7 +249,7 @@ export default async function ClientsPage({
             <Input name="signed_at" placeholder="Date (ex: 2026-04-15)" />
 
             <div className="md:col-span-3">
-              <Button type="submit">Enregistrer (Prospect)</Button>
+              <Button type="submit">Enregistrer (Client)</Button>
             </div>
           </ConfirmForm>
         </Card>
@@ -267,39 +265,40 @@ export default async function ClientsPage({
       <Card>
         <form className="grid gap-3 sm:grid-cols-3">
           <Input name="q" defaultValue={params.q} placeholder="Rechercher..." />
-          <select
-            name="statut"
-            defaultValue={params.statut ?? ""}
-            className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-          >
-            <option value="">Tous statuts</option>
-            <option value="prospect">prospect</option>
-            <option value="en cours">en cours</option>
-            <option value="client">client</option>
-          </select>
+          {isAdmin ? (
+            <select
+              name="statut"
+              defaultValue={params.statut ?? ""}
+              className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+            >
+              <option value="">Tous statuts</option>
+              <option value="client">client</option>
+              <option value="prospect">prospect</option>
+            </select>
+          ) : (
+            <input type="hidden" name="statut" value="client" />
+          )}
           <Button type="submit" variant="ghost">
             Filtrer
           </Button>
         </form>
       </Card>
 
-      <Card className="grid gap-3 sm:grid-cols-4">
+      <Card className="grid gap-3 sm:grid-cols-3">
         <div>
           <p className="text-xs uppercase text-zinc-500">Total</p>
           <p className="text-2xl font-semibold tracking-tight">{clients.length}</p>
         </div>
         <div>
-          <p className="text-xs uppercase text-zinc-500">Prospects</p>
-          <p className="text-2xl font-semibold tracking-tight">{prospects.length}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase text-zinc-500">En cours</p>
-          <p className="text-2xl font-semibold tracking-tight">{enCours.length}</p>
-        </div>
-        <div>
           <p className="text-xs uppercase text-zinc-500">Clients</p>
           <p className="text-2xl font-semibold tracking-tight">{customers.length}</p>
         </div>
+        {isAdmin ? (
+          <div>
+            <p className="text-xs uppercase text-zinc-500">Prospects</p>
+            <p className="text-2xl font-semibold tracking-tight">{prospects.length}</p>
+          </div>
+        ) : null}
       </Card>
 
       {isAdmin ? (
@@ -443,10 +442,8 @@ export default async function ClientsPage({
 
       <div className="grid gap-3 md:hidden">
         {[
-          { key: "prospect", label: "Prospects", rows: prospects },
-          { key: "en cours", label: "En cours", rows: enCours },
           { key: "client", label: "Clients", rows: customers },
-          { key: "autres", label: "Autres", rows: other },
+          ...(isAdmin ? [{ key: "prospect", label: "Prospects", rows: prospects }] : []),
         ].map((section) => {
           if (!section.rows.length) return null;
           return (
@@ -466,21 +463,23 @@ export default async function ClientsPage({
                         Dossier client
                       </Button>
                     </Link>
-                    <ConfirmForm
-                      action={updateClientAction}
-                      confirmMessage="Confirmer le passage au statut suivant ?"
-                      className="mt-2"
-                    >
-                      <input type="hidden" name="id" value={client.id} />
-                      <input type="hidden" name="nom" value={client.nom} />
-                      <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
-                      <input type="hidden" name="telephone" value={client.telephone ?? ""} />
-                      <input type="hidden" name="email" value={client.email} />
-                      <input type="hidden" name="statut" value={client.statut === "prospect" ? "en cours" : "client"} />
-                      <Button type="submit" variant="secondary" className="w-full">
-                        Avancer
-                      </Button>
-                    </ConfirmForm>
+                    {isAdmin && client.statut === "prospect" ? (
+                      <ConfirmForm
+                        action={updateClientAction}
+                        confirmMessage="Confirmer le passage au statut client ?"
+                        className="mt-2"
+                      >
+                        <input type="hidden" name="id" value={client.id} />
+                        <input type="hidden" name="nom" value={client.nom} />
+                        <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
+                        <input type="hidden" name="telephone" value={client.telephone ?? ""} />
+                        <input type="hidden" name="email" value={client.email} />
+                        <input type="hidden" name="statut" value="client" />
+                        <Button type="submit" variant="secondary" className="w-full">
+                          Passer en client
+                        </Button>
+                      </ConfirmForm>
+                    ) : null}
                     {isAdmin ? (
                       <ConfirmForm
                         action={deleteClientAction}
@@ -531,25 +530,19 @@ export default async function ClientsPage({
                         Dossier
                       </Button>
                     </Link>
-                    <ConfirmForm
-                      action={updateClientAction}
-                      confirmMessage="Confirmer le passage au statut suivant ?"
-                      className="flex gap-2"
-                    >
-                      <input type="hidden" name="id" value={client.id} />
-                      <input type="hidden" name="nom" value={client.nom} />
-                      <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
-                      <input type="hidden" name="telephone" value={client.telephone ?? ""} />
-                      <input type="hidden" name="email" value={client.email} />
-                      <input
-                        type="hidden"
-                        name="statut"
-                        value={client.statut === "prospect" ? "en cours" : "client"}
-                      />
-                      <Button type="submit" variant="ghost">
-                        Avancer
-                      </Button>
-                    </ConfirmForm>
+                    {isAdmin && client.statut === "prospect" ? (
+                      <ConfirmForm action={updateClientAction} confirmMessage="Confirmer le passage au statut client ?">
+                        <input type="hidden" name="id" value={client.id} />
+                        <input type="hidden" name="nom" value={client.nom} />
+                        <input type="hidden" name="entreprise" value={client.entreprise ?? ""} />
+                        <input type="hidden" name="telephone" value={client.telephone ?? ""} />
+                        <input type="hidden" name="email" value={client.email} />
+                        <input type="hidden" name="statut" value="client" />
+                        <Button type="submit" variant="ghost">
+                          Passer en client
+                        </Button>
+                      </ConfirmForm>
+                    ) : null}
                     {isAdmin ? (
                       <ConfirmForm action={deleteClientAction} confirmMessage="Confirmer la suppression de ce client ?">
                         <input type="hidden" name="id" value={client.id} />

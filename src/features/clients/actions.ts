@@ -43,6 +43,9 @@ export async function createClientAction(formData: FormData) {
 
   const objectives = formData.getAll("objectives").map((v) => String(v)).filter(Boolean);
   const subscriptionPlan = String(formData.get("subscription_plan") ?? "");
+  const months = planToMonths(subscriptionPlan);
+  const startedAt = new Date().toISOString();
+  const endsAt = months ? addMonths(new Date(startedAt), months).toISOString() : null;
   const intakeData =
     profile?.role === "commercial"
       ? {
@@ -73,6 +76,12 @@ export async function createClientAction(formData: FormData) {
           activity_description: String(formData.get("activity_description") ?? ""),
           responsible_name: String(formData.get("responsible_name") ?? ""),
           signed_at: String(formData.get("signed_at") ?? ""),
+          validated_at: startedAt,
+          subscription: {
+            plan: subscriptionPlan || null,
+            started_at: startedAt,
+            ends_at: endsAt,
+          },
         }
       : {};
 
@@ -81,7 +90,7 @@ export async function createClientAction(formData: FormData) {
     entreprise: String(formData.get("entreprise") ?? "") || null,
     telephone: String(formData.get("telephone") ?? "") || null,
     email: String(formData.get("email") ?? ""),
-    statut: String(formData.get("statut") ?? "prospect"),
+    statut: "client",
     intake_data: intakeData,
     owner_id: user.id,
   };
@@ -105,7 +114,10 @@ export async function updateClientAction(formData: FormData) {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
   const id = String(formData.get("id"));
-  const nextStatus = String(formData.get("statut") ?? "prospect");
+  const requestedStatus = String(formData.get("statut") ?? "client");
+  const nextStatus = profile?.role === "admin" ? requestedStatus : "client";
+  const allowed = new Set(["prospect", "client"]);
+  const normalizedStatus = allowed.has(nextStatus) ? nextStatus : "client";
 
   const readQuery = supabase
     .from("clients")
@@ -123,7 +135,7 @@ export async function updateClientAction(formData: FormData) {
   const intake = (current as unknown as { intake_data?: Record<string, unknown> | null }).intake_data ?? {};
 
   let nextIntake: Record<string, unknown> | null = null;
-  if (nextStatus === "client" && currentStatus !== "client") {
+  if (normalizedStatus === "client" && currentStatus !== "client") {
     const existingSubscription = (intake.subscription as Record<string, unknown> | undefined) ?? undefined;
     const plan =
       (existingSubscription?.plan as string | undefined) ??
@@ -148,7 +160,7 @@ export async function updateClientAction(formData: FormData) {
     entreprise: String(formData.get("entreprise") ?? "") || null,
     telephone: String(formData.get("telephone") ?? "") || null,
     email: String(formData.get("email") ?? ""),
-    statut: nextStatus,
+    statut: normalizedStatus,
   };
   if (nextIntake) {
     updateData.intake_data = nextIntake;
