@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
+    "postbuild": "node -e \"const fs=require('fs');const path=require('path');const server=path.join(process.cwd(),'.next','server');const src=path.join(server,'src','middleware.js');if(!fs.existsSync(src)){process.exit(0);}const dst=path.join(server,'middleware.js');fs.copyFileSync(src,dst);const srcMap=path.join(server,'src','middleware.js.map');const dstMap=path.join(server,'middleware.js.map');if(fs.existsSync(srcMap)) fs.copyFileSync(srcMap,dstMap);const nft=path.join(server,'middleware.js.nft.json');if(!fs.existsSync(nft)) fs.writeFileSync(nft, JSON.stringify({version:1,files:[]}), 'utf8');\"",
     "start": "next start",
     "lint": "eslint"
   },
