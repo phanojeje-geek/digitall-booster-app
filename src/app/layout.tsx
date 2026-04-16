@@ -51,6 +51,12 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{document.documentElement.classList.remove('dark','hc');document.documentElement.style.colorScheme='light';localStorage.removeItem('theme');localStorage.removeItem('contrast');document.cookie='theme=; Max-Age=0; path=/; samesite=lax';document.cookie='contrast=; Max-Age=0; path=/; samesite=lax';}catch(e){}})();",
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <PWARegister />
