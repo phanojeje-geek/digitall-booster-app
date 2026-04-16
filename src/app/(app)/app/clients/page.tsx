@@ -11,7 +11,6 @@ import {
   createClientAction,
   deleteClientAction,
   deleteClientSubscriptionAction,
-  generateSubscriptionAlertsAction,
   updateClientAction,
   updateClientSubscriptionAction,
 } from "@/features/clients/actions";
@@ -307,14 +306,6 @@ export default async function ClientsPage({
         <Card className="overflow-auto">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold">Abonnements (clients validés)</h2>
-            <ConfirmForm
-              action={generateSubscriptionAlertsAction}
-              confirmMessage="Générer les notifications d'échéance (J-7/J-3/J-1/expiré) ?"
-            >
-              <Button type="submit" variant="secondary">
-                Générer alertes
-              </Button>
-            </ConfirmForm>
           </div>
           <table className="w-full min-w-[980px] text-sm">
             <thead>
