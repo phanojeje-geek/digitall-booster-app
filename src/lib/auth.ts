@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { unstable_noStore as noStore } from "next/cache";
 import { mockProfile } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, Role } from "@/lib/types";
 
@@ -57,7 +58,8 @@ export async function getCurrentProfile() {
     ((user as unknown as { email?: string }).email ? (user as unknown as { email: string }).email.split("@")[0] : "") ??
     "";
 
-  await supabase.from("profiles").upsert(
+  const admin = createAdminClient();
+  await admin.from("profiles").upsert(
     {
       id: user.id,
       full_name: fallbackFullName,

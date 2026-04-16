@@ -38,13 +38,13 @@ export function AppMobileDrawer({
 
       <div
         className={`fixed inset-0 z-40 transition-all duration-300 lg:hidden ${
-          open ? "pointer-events-auto bg-zinc-950/75 backdrop-blur-sm" : "pointer-events-none bg-transparent"
+          open ? "pointer-events-auto bg-zinc-950/75" : "pointer-events-none bg-transparent"
         }`}
         onClick={() => setOpen(false)}
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[320px] max-w-[88vw] border-r border-zinc-200 bg-white p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out dark:border-zinc-700 dark:bg-zinc-950 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-[320px] max-w-[88vw] border-r border-zinc-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out dark:border-zinc-700 dark:bg-zinc-950 lg:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

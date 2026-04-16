@@ -1,4 +1,4 @@
-import { Search, Sparkles } from "lucide-react";
+import { LogOut, Search, Sparkles } from "lucide-react";
 import { AppMobileDrawer } from "@/components/app-mobile-drawer";
 import { AppNav, type AppNavIcon, type AppNavLink } from "@/components/app-nav";
 import { CommercialLiveLocation } from "@/components/commercial-live-location";
@@ -65,7 +65,7 @@ export function AppShell({
           </div>
         </aside>
         <div className="flex min-w-0 flex-col">
-          <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/88 px-4 py-3 backdrop-blur md:px-6 dark:border-zinc-800/80 dark:bg-[#0f172b]">
+          <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-6 md:py-3 md:pt-3 md:backdrop-blur dark:border-zinc-800/80 dark:bg-[#0f172b]">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <AppMobileDrawer
@@ -85,9 +85,14 @@ export function AppShell({
                 </span>
                 <NotificationBell />
                 <ConfirmForm action={signOutAction} confirmMessage="Confirmer la deconnexion ?">
-                  <Button type="submit" variant="ghost">
-                    Deconnexion
-                  </Button>
+                  <>
+                    <Button type="submit" variant="ghost" className="hidden sm:inline-flex">
+                      Deconnexion
+                    </Button>
+                    <Button type="submit" variant="ghost" className="sm:hidden" aria-label="Deconnexion">
+                      <LogOut size={16} />
+                    </Button>
+                  </>
                 </ConfirmForm>
               </div>
             </div>

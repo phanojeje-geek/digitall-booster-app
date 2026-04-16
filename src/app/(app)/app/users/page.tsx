@@ -21,6 +21,8 @@ import {
 import type { Role } from "@/lib/types";
 import { KeyRound, Lock, LockOpen } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 type UserRow = {
   id: string;
   full_name: string | null;

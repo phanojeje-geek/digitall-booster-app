@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ async function toWebp(file: File, maxSide: number, quality: number) {
   if (!file.type.startsWith("image/")) return file;
   if (file.type === "image/svg+xml") return file;
   if (file.type === "image/webp") return file;
+  if (file.size < 900_000) return file;
 
   const createBitmap = async () => {
     if ("createImageBitmap" in window) {
@@ -65,6 +66,7 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canSubmit = Boolean(clientId && file && !busy);
 
@@ -107,6 +109,7 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
       }
 
       setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       router.refresh();
     } finally {
       setBusy(false);
@@ -130,6 +133,7 @@ export function ClientFilesUploader({ clients }: { clients: ClientOption[] }) {
         ))}
       </select>
       <input
+        ref={fileInputRef}
         name="file"
         type="file"
         required
@@ -172,6 +176,9 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
   const [single, setSingle] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rectoRef = useRef<HTMLInputElement | null>(null);
+  const versoRef = useRef<HTMLInputElement | null>(null);
+  const singleRef = useRef<HTMLInputElement | null>(null);
 
   const mode = useMemo(() => templateToDocTypes(template), [template]);
 
@@ -208,7 +215,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
       }
 
       for (const item of uploads) {
-        const converted = await toWebp(item.file, 1600, 0.82);
+        const converted = await toWebp(item.file, 1400, 0.8);
         const path = `${user.id}/${clientId}/${item.docType}-${Date.now()}-${converted.name}`;
         const { error: uploadError } = await supabase.storage.from("client-documents").upload(path, converted, {
           upsert: false,
@@ -234,6 +241,9 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
       setRecto(null);
       setVerso(null);
       setSingle(null);
+      if (rectoRef.current) rectoRef.current.value = "";
+      if (versoRef.current) versoRef.current.value = "";
+      if (singleRef.current) singleRef.current.value = "";
       router.refresh();
     } finally {
       setBusy(false);
@@ -244,7 +254,15 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
     <form onSubmit={onSubmit} className="mb-4 grid gap-3">
       <select
         value={template}
-        onChange={(e) => setTemplate(e.target.value as DocumentTemplate)}
+        onChange={(e) => {
+          setTemplate(e.target.value as DocumentTemplate);
+          setRecto(null);
+          setVerso(null);
+          setSingle(null);
+          if (rectoRef.current) rectoRef.current.value = "";
+          if (versoRef.current) versoRef.current.value = "";
+          if (singleRef.current) singleRef.current.value = "";
+        }}
         className="h-10 rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
       >
         <option value="cni_recto_verso">CNI (recto + verso)</option>
@@ -256,6 +274,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
       {mode.requiresBothSides ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <input
+            ref={rectoRef}
             type="file"
             required
             accept="image/*"
@@ -264,6 +283,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
             className="h-10 w-full min-w-0 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-700"
           />
           <input
+            ref={versoRef}
             type="file"
             required
             accept="image/*"
@@ -274,6 +294,7 @@ export function ClientDocumentsUploader({ clientId }: { clientId: string }) {
         </div>
       ) : (
         <input
+          ref={singleRef}
           type="file"
           required
           accept="image/*,application/pdf"

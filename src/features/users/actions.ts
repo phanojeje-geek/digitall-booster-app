@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,8 +36,8 @@ export async function bootstrapStorageBucketsAction() {
 
 export async function createUserAccountAction(formData: FormData) {
   const currentProfile = await getCurrentProfile();
-  if (currentProfile?.role !== "admin") return;
-  if (isDemoMode) return;
+  if (currentProfile?.role !== "admin") redirect("/app?forbidden=1");
+  if (isDemoMode) redirect("/app/users?demo=1");
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -45,11 +46,11 @@ export async function createUserAccountAction(formData: FormData) {
   const salesGroup = String(formData.get("sales_group") ?? "groupe-a");
 
   if (!email || !email.includes("@") || password.length < 8 || !fullName) {
-    return;
+    redirect("/app/users?error=invalid");
   }
 
   if (!allowedRoles.includes(role)) {
-    return;
+    redirect("/app/users?error=role");
   }
 
   try {
@@ -62,7 +63,7 @@ export async function createUserAccountAction(formData: FormData) {
     });
 
     if (error || !data.user?.id) {
-      return;
+      redirect("/app/users?error=create");
     }
 
     const userId = data.user.id;
@@ -76,6 +77,7 @@ export async function createUserAccountAction(formData: FormData) {
   } finally {
     revalidatePath("/app/users");
   }
+  redirect("/app/users?created=1");
 }
 
 export async function updateUserRoleAction(formData: FormData) {

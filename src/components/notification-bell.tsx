@@ -212,9 +212,9 @@ export function NotificationBell() {
       </Button>
       {open ? (
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 bg-black/20 md:backdrop-blur-[1px]" />
           <div
-            className="fixed right-3 top-14 w-[min(94vw,26rem)] overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 sm:top-16"
+            className="fixed right-3 top-[calc(env(safe-area-inset-top)+3.5rem)] w-[min(94vw,26rem)] overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 shadow-2xl md:backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 sm:top-[calc(env(safe-area-inset-top)+4rem)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/95 p-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
