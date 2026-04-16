@@ -22,6 +22,11 @@ function planToMonths(plan: string) {
   return 0;
 }
 
+function readRecord(value: unknown) {
+  if (!value || typeof value !== "object") return {};
+  return value as Record<string, unknown>;
+}
+
 export async function createClientAction(formData: FormData) {
   if (isDemoMode) {
     revalidatePath("/app/clients");
@@ -248,4 +253,127 @@ export async function saveClientSignatureAction(formData: FormData) {
 
   revalidatePath("/app/clients");
   revalidatePath(`/app/clients/${clientId}`);
+}
+
+export async function updateClientSubscriptionAction(formData: FormData) {
+  if (isDemoMode) {
+    revalidatePath("/app/clients");
+    return;
+  }
+
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") return;
+
+  const clientId = String(formData.get("client_id") ?? "");
+  const plan = String(formData.get("plan") ?? "");
+  if (!clientId || !plan) return;
+
+  const months = planToMonths(plan);
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("clients").select("id,intake_data").eq("id", clientId).maybeSingle();
+  if (!row?.id) return;
+
+  const intake = readRecord((row as unknown as { intake_data?: unknown }).intake_data);
+  const prevSub = readRecord(intake.subscription);
+  const startedAtRaw =
+    (prevSub.started_at as string | undefined) ?? (intake.validated_at as string | undefined) ?? new Date().toISOString();
+  const startedAt = new Date(startedAtRaw);
+  const startedAtIso = Number.isFinite(startedAt.getTime()) ? startedAt.toISOString() : new Date().toISOString();
+  const endsAtIso = months ? addMonths(new Date(startedAtIso), months).toISOString() : null;
+
+  const nextIntake = {
+    ...intake,
+    validated_at: intake.validated_at ?? startedAtIso,
+    subscription: {
+      plan,
+      started_at: startedAtIso,
+      ends_at: endsAtIso,
+      notified_days: [],
+    },
+  };
+
+  await supabase.from("clients").update({ intake_data: nextIntake }).eq("id", clientId);
+  revalidatePath("/app/clients");
+  revalidatePath(`/app/clients/${clientId}`);
+}
+
+export async function deleteClientSubscriptionAction(formData: FormData) {
+  if (isDemoMode) {
+    revalidatePath("/app/clients");
+    return;
+  }
+
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") return;
+
+  const clientId = String(formData.get("client_id") ?? "");
+  if (!clientId) return;
+
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("clients").select("id,intake_data").eq("id", clientId).maybeSingle();
+  if (!row?.id) return;
+
+  const intake = readRecord((row as unknown as { intake_data?: unknown }).intake_data);
+  const nextIntake = { ...intake };
+  delete (nextIntake as Record<string, unknown>).subscription;
+
+  await supabase.from("clients").update({ intake_data: nextIntake }).eq("id", clientId);
+  revalidatePath("/app/clients");
+  revalidatePath(`/app/clients/${clientId}`);
+}
+
+export async function generateSubscriptionAlertsAction() {
+  if (isDemoMode) {
+    revalidatePath("/app/clients");
+    return;
+  }
+
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") return;
+
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from("clients")
+    .select("id,nom,statut,intake_data")
+    .eq("statut", "client")
+    .order("created_at", { ascending: false })
+    .limit(2000);
+
+  const now = Date.now();
+  const alertDays = [7, 3, 1, 0] as const;
+
+  for (const raw of (rows ?? []) as Array<{ id: string; nom: string; statut: string; intake_data: unknown }>) {
+    const intake = readRecord(raw.intake_data);
+    const sub = readRecord(intake.subscription);
+    const endsAt = (sub.ends_at as string | undefined) ?? null;
+    if (!endsAt) continue;
+
+    const endsMs = new Date(endsAt).getTime();
+    if (!Number.isFinite(endsMs)) continue;
+    const daysLeft = Math.max(0, Math.ceil((endsMs - now) / (24 * 60 * 60 * 1000)));
+    if (!alertDays.includes(daysLeft as (typeof alertDays)[number])) continue;
+
+    const notified = Array.isArray(sub.notified_days) ? sub.notified_days.filter((n) => typeof n === "number") : [];
+    if (notified.includes(daysLeft)) continue;
+
+    const nextSub = {
+      ...sub,
+      notified_days: [...notified, daysLeft],
+    };
+    const nextIntake = { ...intake, subscription: nextSub };
+
+    await supabase.from("clients").update({ intake_data: nextIntake }).eq("id", raw.id);
+    await supabase.from("notifications").insert({
+      sender_id: profile.id,
+      scope: "role",
+      target_role: "admin",
+      target_user_id: null,
+      owner_id: null,
+      title: "Abonnement",
+      message: daysLeft === 0 ? `Abonnement expiré: ${raw.nom}` : `Abonnement: ${raw.nom} arrive à échéance (J-${daysLeft})`,
+      read: false,
+    });
+  }
+
+  revalidatePath("/app/clients");
 }

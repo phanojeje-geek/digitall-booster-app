@@ -7,7 +7,14 @@ import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { createClient } from "@/lib/supabase/server";
-import { createClientAction, deleteClientAction, updateClientAction } from "@/features/clients/actions";
+import {
+  createClientAction,
+  deleteClientAction,
+  deleteClientSubscriptionAction,
+  generateSubscriptionAlertsAction,
+  updateClientAction,
+  updateClientSubscriptionAction,
+} from "@/features/clients/actions";
 
 type ClientListRow = {
   id: string;
@@ -118,6 +125,35 @@ export default async function ClientsPage({
         daysLeft,
       };
     });
+
+  const expirationsByDate: Record<string, typeof subscriptions> = {};
+  for (const s of subscriptions) {
+    if (!s.endsAt) continue;
+    const d = new Date(s.endsAt);
+    if (!Number.isFinite(d.getTime())) continue;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const key = `${yyyy}-${mm}-${dd}`;
+    expirationsByDate[key] = [...(expirationsByDate[key] ?? []), s];
+  }
+
+  const month = new Date();
+  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const startOffset = (monthStart.getDay() + 6) % 7;
+  const dayCount = monthEnd.getDate();
+  const calendarCells: Array<{ date: Date | null; key: string }> = [];
+  for (let i = 0; i < startOffset; i += 1) {
+    calendarCells.push({ date: null, key: `empty-${i}` });
+  }
+  for (let day = 1; day <= dayCount; day += 1) {
+    const d = new Date(month.getFullYear(), month.getMonth(), day);
+    calendarCells.push({ date: d, key: d.toISOString() });
+  }
+  while (calendarCells.length % 7 !== 0) {
+    calendarCells.push({ date: null, key: `tail-${calendarCells.length}` });
+  }
 
   return (
     <div className="space-y-5">
@@ -269,8 +305,18 @@ export default async function ClientsPage({
 
       {isAdmin ? (
         <Card className="overflow-auto">
-          <h2 className="mb-3 text-base font-semibold">Abonnements (clients validés)</h2>
-          <table className="w-full min-w-[860px] text-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Abonnements (clients validés)</h2>
+            <ConfirmForm
+              action={generateSubscriptionAlertsAction}
+              confirmMessage="Générer les notifications d'échéance (J-7/J-3/J-1/expiré) ?"
+            >
+              <Button type="submit" variant="secondary">
+                Générer alertes
+              </Button>
+            </ConfirmForm>
+          </div>
+          <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="text-left text-zinc-500">
                 <th className="py-2">Client</th>
@@ -280,6 +326,7 @@ export default async function ClientsPage({
                 <th>Début</th>
                 <th>Fin</th>
                 <th>Jours restants</th>
+                <th className="w-52">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -299,17 +346,107 @@ export default async function ClientsPage({
                   <td className="text-xs font-semibold">
                     {s.daysLeft === null ? "-" : s.daysLeft === 0 ? "Expiré" : `J-${s.daysLeft}`}
                   </td>
+                  <td>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ConfirmForm
+                        action={updateClientSubscriptionAction}
+                        confirmMessage="Confirmer le passage à 6 mois ?"
+                        className="inline-flex"
+                      >
+                        <input type="hidden" name="client_id" value={s.id} />
+                        <input type="hidden" name="plan" value="6_mois_3000_fcfa" />
+                        <Button type="submit" variant="ghost">
+                          6 mois
+                        </Button>
+                      </ConfirmForm>
+                      <ConfirmForm
+                        action={updateClientSubscriptionAction}
+                        confirmMessage="Confirmer le passage à 12 mois ?"
+                        className="inline-flex"
+                      >
+                        <input type="hidden" name="client_id" value={s.id} />
+                        <input type="hidden" name="plan" value="12_mois_5000_fcfa" />
+                        <Button type="submit" variant="ghost">
+                          12 mois
+                        </Button>
+                      </ConfirmForm>
+                      <ConfirmForm
+                        action={deleteClientSubscriptionAction}
+                        confirmMessage="Confirmer la suppression de l'abonnement de ce client ?"
+                        className="inline-flex"
+                      >
+                        <input type="hidden" name="client_id" value={s.id} />
+                        <Button type="submit" variant="danger">
+                          Suppr.
+                        </Button>
+                      </ConfirmForm>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {subscriptions.length === 0 ? (
                 <tr>
-                  <td className="py-3 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-3 text-sm text-zinc-500" colSpan={8}>
                     Aucun abonnement actif pour le moment.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
+        </Card>
+      ) : null}
+
+      {isAdmin ? (
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">Calendrier des échéances (ce mois)</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm text-zinc-500">
+              {month.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+            </p>
+            <p className="text-xs text-zinc-500">Les jours avec échéance affichent le nombre de clients.</p>
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-xs">
+            {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
+              <div key={d} className="text-center font-semibold text-zinc-500">
+                {d}
+              </div>
+            ))}
+            {calendarCells.map((cell) => {
+              if (!cell.date) {
+                return <div key={cell.key} className="h-16 rounded-xl bg-zinc-50" />;
+              }
+              const yyyy = cell.date.getFullYear();
+              const mm = String(cell.date.getMonth() + 1).padStart(2, "0");
+              const dd = String(cell.date.getDate()).padStart(2, "0");
+              const key = `${yyyy}-${mm}-${dd}`;
+              const list = expirationsByDate[key] ?? [];
+              return (
+                <div
+                  key={cell.key}
+                  className={`h-16 rounded-xl border p-2 ${
+                    list.length ? "border-indigo-200 bg-indigo-50" : "border-zinc-200/70 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{cell.date.getDate()}</span>
+                    {list.length ? (
+                      <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        {list.length}
+                      </span>
+                    ) : null}
+                  </div>
+                  {list.length ? (
+                    <p className="mt-1 truncate text-[11px] text-indigo-900">
+                      {list.slice(0, 1).map((x: (typeof subscriptions)[number]) => x.client).join(", ")}
+                      {list.length > 1 ? "…" : ""}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-zinc-400">-</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </Card>
       ) : null}
 
