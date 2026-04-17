@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; blocked?: string }>;
+  searchParams: Promise<{ error?: string; blocked?: string; password?: string }>;
 }) {
   const params = await searchParams;
 
@@ -22,15 +22,30 @@ export default async function LoginPage({
       </div>
 
       {params.blocked ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
+        >
           Votre acces est bloque. Contactez votre administrateur.
-        </p>
+        </div>
       ) : null}
 
-      {!params.blocked && params.error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+      {!params.blocked && params.password ? (
+        <div
+          role="status"
+          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
+        >
+          Mot de passe mis a jour. Vous pouvez vous connecter.
+        </div>
+      ) : null}
+
+      {!params.blocked && !params.password && params.error ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
+        >
           {getErrorMessage(params.error)}
-        </p>
+        </div>
       ) : null}
 
       <CardBlock title="Identifiants">
@@ -60,6 +75,7 @@ function getErrorMessage(error: string): string {
     "Too many requests": "Trop de tentatives de connexion. Veuillez réessayer plus tard",
     "Network error": "Erreur de réseau. Vérifiez votre connexion internet",
     "invalid_grant": "Session expirée. Veuillez vous reconnecter",
+    access_denied: "Acces refuse. Veuillez vous reconnecter.",
   };
   
   return errorMap[error] || `Erreur de connexion: ${error}`;

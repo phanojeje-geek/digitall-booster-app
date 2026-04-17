@@ -150,7 +150,11 @@ export default async function UsersPage({
 
       {params.error ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-          Operation impossible. Reessayez.
+          {params.error === "reset"
+            ? "Reset impossible. Verifiez les URLs de redirection Supabase puis reessayez."
+            : params.error === "password"
+              ? "Changement de mot de passe impossible. Reessayez."
+              : "Operation impossible. Reessayez."}
         </p>
       ) : null}
 

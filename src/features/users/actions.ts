@@ -173,7 +173,7 @@ export async function resetUserAccessAction(formData: FormData) {
         process.env.NEXT_PUBLIC_APP_URL ??
         "http://localhost:3000";
       await supabase.auth.resetPasswordForEmail(target.email, {
-        redirectTo: `${origin}/login`,
+        redirectTo: `${origin}/reset-password`,
       });
     }
 
