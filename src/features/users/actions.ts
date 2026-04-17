@@ -138,10 +138,15 @@ export async function updateUserPasswordAction(formData: FormData) {
   if (!userId || password.length < 8) return;
 
   const adminClient = createAdminClient();
-  await adminClient.auth.admin.updateUserById(userId, { password });
-  await adminClient.from("profiles").update({ access_reset_at: new Date().toISOString() }).eq("id", userId);
+  try {
+    await adminClient.auth.admin.updateUserById(userId, { password });
+    await adminClient.from("profiles").update({ access_reset_at: new Date().toISOString() }).eq("id", userId);
+    revalidatePath("/app/users");
+  } catch {
+    redirect("/app/users?error=password");
+  }
 
-  revalidatePath("/app/users");
+  redirect("/app/users?password=1");
 }
 
 export async function resetUserAccessAction(formData: FormData) {
@@ -151,13 +156,14 @@ export async function resetUserAccessAction(formData: FormData) {
   const userId = String(formData.get("user_id") ?? "");
   if (!userId) return;
 
-  if (!isDemoMode) {
+  if (isDemoMode) {
+    redirect("/app/users?demo=1");
+  }
+
+  try {
     const supabase = await createClient();
     const { data: target } = await supabase.from("profiles").select("email").eq("id", userId).single();
-    await supabase
-      .from("profiles")
-      .update({ access_reset_at: new Date().toISOString(), is_blocked: true })
-      .eq("id", userId);
+    await supabase.from("profiles").update({ access_reset_at: new Date().toISOString() }).eq("id", userId);
 
     if (target?.email) {
       const headerStore = await headers();
@@ -170,9 +176,12 @@ export async function resetUserAccessAction(formData: FormData) {
         redirectTo: `${origin}/login`,
       });
     }
-  }
 
-  revalidatePath("/app/users");
+    revalidatePath("/app/users");
+    redirect("/app/users?reset=1");
+  } catch {
+    redirect("/app/users?error=reset");
+  }
 }
 
 export async function updateCommercialGroupAction(formData: FormData) {

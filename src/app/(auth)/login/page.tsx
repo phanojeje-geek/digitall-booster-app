@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; blocked?: string }>;
 }) {
   const params = await searchParams;
 
@@ -21,7 +21,13 @@ export default async function LoginPage({
         </p>
       </div>
 
-      {params.error ? (
+      {params.blocked ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          Votre acces est bloque. Contactez votre administrateur.
+        </p>
+      ) : null}
+
+      {!params.blocked && params.error ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
           {getErrorMessage(params.error)}
         </p>

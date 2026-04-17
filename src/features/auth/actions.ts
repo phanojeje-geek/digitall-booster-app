@@ -37,7 +37,11 @@ export async function signInAction(formData: FormData) {
 
   const user = data.user;
   if (user) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const { data: profile } = await supabase.from("profiles").select("role,is_blocked").eq("id", user.id).single();
+    if (profile?.is_blocked) {
+      await supabase.auth.signOut();
+      redirect("/login?blocked=1");
+    }
     const role = (profile?.role as Role | undefined) ?? "dev";
     const now = new Date().toISOString();
     const latitude = geoLatRaw ? Number(geoLatRaw) : null;

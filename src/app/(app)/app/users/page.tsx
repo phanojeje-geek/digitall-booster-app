@@ -14,7 +14,6 @@ import {
   resetUserAccessAction,
   sendAdminNotificationAction,
   toggleUserBlockAction,
-  updateUserPasswordAction,
   updateCommercialGroupAction,
   updateUserRoleAction,
 } from "@/features/users/actions";
@@ -53,7 +52,12 @@ type ConnectionLogRow = {
 
 const roles: Role[] = ["admin", "commercial", "marketing", "dev", "designer"];
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; reset?: string; password?: string }>;
+}) {
+  const params = await searchParams;
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") {
     redirect("/app?forbidden=1");
@@ -131,6 +135,24 @@ export default async function UsersPage() {
           </p>
         ) : null}
       </div>
+
+      {params.reset ? (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          Email de reinitialisation envoye.
+        </p>
+      ) : null}
+
+      {params.password ? (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+          Mot de passe mis a jour.
+        </p>
+      ) : null}
+
+      {params.error ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          Operation impossible. Reessayez.
+        </p>
+      ) : null}
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">Creer un utilisateur</h2>
@@ -388,41 +410,13 @@ export default async function UsersPage() {
                       </ConfirmForm>
                     ) : null}
 
-                    <details className="group">
-                      <summary className="list-none">
-                        <Button type="button" variant="ghost" aria-label="Modifier le mot de passe">
-                          <KeyRound size={16} />
-                        </Button>
-                      </summary>
-                      <div className="mt-2 w-64 rounded-xl border border-zinc-200/80 bg-white/95 p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-950/95">
-                        <ConfirmForm
-                          action={updateUserPasswordAction}
-                          confirmMessage="Confirmer le changement de mot de passe ?"
-                          className="space-y-2"
-                        >
-                          <input type="hidden" name="user_id" value={user.id} />
-                          <input
-                            name="password"
-                            type="password"
-                            required
-                            minLength={8}
-                            placeholder="Nouveau mot de passe (min 8)"
-                            className="h-10 w-full rounded-lg border border-zinc-200/80 bg-white/90 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950/85"
-                          />
-                          <Button type="submit" variant="secondary" className="w-full">
-                            Sauver
-                          </Button>
-                        </ConfirmForm>
-                      </div>
-                    </details>
-
                     <ConfirmForm
                       action={resetUserAccessAction}
-                      confirmMessage="Confirmer la reinitialisation d acces (blocage + email reset) ?"
+                      confirmMessage="Confirmer l envoi de l email de reinitialisation du mot de passe ?"
                     >
                       <input type="hidden" name="user_id" value={user.id} />
-                      <Button type="submit" variant="ghost">
-                        Reset acces
+                      <Button type="submit" variant="ghost" aria-label="Reset mot de passe">
+                        <KeyRound size={16} />
                       </Button>
                     </ConfirmForm>
 
