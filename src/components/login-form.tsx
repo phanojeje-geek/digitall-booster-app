@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import type { signInAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 type SignInActionType = typeof signInAction;
 
@@ -41,9 +43,17 @@ export function LoginForm({ action }: { action: SignInActionType }) {
       <input type="hidden" name="geo_label" value={geo.label ?? ""} />
       <Input name="email" type="email" required placeholder="Email" />
       <Input name="password" type="password" required placeholder="Mot de passe" />
-      <Button type="submit" className="w-full" variant="secondary">
-        Se connecter
-      </Button>
+      <SubmitButton />
     </form>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full gap-2" variant="secondary" disabled={pending}>
+      {pending ? <Spinner /> : null}
+      {pending ? "Connexion..." : "Se connecter"}
+    </Button>
   );
 }
