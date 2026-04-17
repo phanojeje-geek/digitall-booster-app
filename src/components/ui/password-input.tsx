@@ -19,7 +19,6 @@ export function PasswordInput({ className, ...props }: React.InputHTMLAttributes
       <Button
         type="button"
         variant="ghost"
-        size="icon"
         className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 transform"
         onClick={() => setShowPassword(!showPassword)}
       >
