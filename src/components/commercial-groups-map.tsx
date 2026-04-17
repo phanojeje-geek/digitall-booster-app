@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import type { ComponentType } from "react";
+import { divIcon } from "leaflet";
 import { createClient } from "@/lib/supabase/browser";
 
 type CommercialPoint = {
@@ -24,7 +25,7 @@ const groupColors: Record<string, string> = {
 
 const SafeMapContainer = MapContainer as unknown as ComponentType<Record<string, unknown>>;
 const SafeTileLayer = TileLayer as unknown as ComponentType<Record<string, unknown>>;
-const SafeCircleMarker = CircleMarker as unknown as ComponentType<Record<string, unknown>>;
+const SafeMarker = Marker as unknown as ComponentType<Record<string, unknown>>;
 
 export function CommercialGroupsMap() {
   const [items, setItems] = useState<CommercialPoint[]>([]);
@@ -58,9 +59,18 @@ export function CommercialGroupsMap() {
       )
       .subscribe();
 
+    const poll = window.setInterval(() => void load(), 15000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       mounted = false;
       void supabase.removeChannel(channel);
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
@@ -83,6 +93,28 @@ export function CommercialGroupsMap() {
       ]
     : [48.8566, 2.3522];
 
+  const iconById = useMemo(() => {
+    const map: Record<string, ReturnType<typeof divIcon>> = {};
+    for (const point of points) {
+      const color = groupColors[point.sales_group ?? "groupe-a"] ?? "#3b82f6";
+      const label = (point.full_name ?? "").trim() || point.id.slice(0, 6);
+      const initials = label
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((s) => s[0]!.toUpperCase())
+        .join("");
+      map[point.id] = divIcon({
+        className: "",
+        html: `<div style="width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid ${color};background:white;color:#111827;font-weight:700;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,0.18)">${initials || "•"}</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -14],
+      });
+    }
+    return map;
+  }, [points]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-xs">
@@ -98,13 +130,11 @@ export function CommercialGroupsMap() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {points.map((point) => {
-            const color = groupColors[point.sales_group ?? "groupe-a"] ?? "#3b82f6";
             return (
-              <SafeCircleMarker
+              <SafeMarker
                 key={point.id}
-                center={[point.last_latitude as number, point.last_longitude as number]}
-                radius={8}
-                pathOptions={{ color, fillColor: color, fillOpacity: 0.85 }}
+                position={[point.last_latitude as number, point.last_longitude as number]}
+                icon={iconById[point.id]}
               >
                 <Popup>
                   <div className="text-xs">
@@ -115,7 +145,7 @@ export function CommercialGroupsMap() {
                     <p>Derniere connexion: {point.last_login_at ? new Date(point.last_login_at).toLocaleString("fr-FR") : "N/A"}</p>
                   </div>
                 </Popup>
-              </SafeCircleMarker>
+              </SafeMarker>
             );
           })}
         </SafeMapContainer>

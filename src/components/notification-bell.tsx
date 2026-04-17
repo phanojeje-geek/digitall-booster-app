@@ -26,6 +26,7 @@ export function NotificationBell() {
     isDemoMode ? (mockNotifications as NotificationItem[]) : [],
   );
   const [pendingProjects, setPendingProjects] = useState(0);
+  const [realtimeOk, setRealtimeOk] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -116,12 +117,25 @@ export function NotificationBell() {
         () => void load(),
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, () => void load())
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setRealtimeOk(true);
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setRealtimeOk(false);
+      });
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const intervalMs = open ? 4000 : 15000;
+    const poll = window.setInterval(() => void load(), intervalMs);
 
     return () => {
       supabase.removeChannel(channel).catch(() => undefined);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(poll);
     };
-  }, [supabase, view]);
+  }, [supabase, view, open]);
 
   const unread = items.filter((n) => !n.read).length;
   const badgeCount = unread + pendingProjects;
@@ -238,6 +252,7 @@ export function NotificationBell() {
                   </Button>
                 </div>
               </div>
+              {!realtimeOk ? <p className="mt-1 text-xs text-zinc-500">Mise a jour auto (mode degrade).</p> : null}
               {pendingProjects > 0 ? (
                 <div className="mt-2 rounded-xl bg-indigo-50 p-2 text-sm text-indigo-900">
                   Projets en attente: <span className="font-semibold">{pendingProjects}</span>

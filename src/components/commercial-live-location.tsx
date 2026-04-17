@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { Role } from "@/lib/types";
 
 type GeoPayload = {
@@ -14,6 +15,7 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
   const sentAtRef = useRef(0);
   const lastPointRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const hiddenRef = useRef(false);
+  const [geoState, setGeoState] = useState<"unknown" | "unsupported" | "denied" | "granted">("unknown");
 
   const minIntervalMs = useMemo(() => 25000, []);
   const maxSilenceMs = useMemo(() => 2 * 60 * 1000, []);
@@ -34,7 +36,21 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
 
   useEffect(() => {
     if (role !== "commercial") return;
-    if (!("geolocation" in navigator)) return;
+    if (!("geolocation" in navigator)) {
+      queueMicrotask(() => setGeoState("unsupported"));
+      return;
+    }
+
+    const permissionsApi = (navigator as unknown as { permissions?: Permissions }).permissions;
+    if (permissionsApi?.query) {
+      permissionsApi
+        .query({ name: "geolocation" as PermissionName })
+        .then((res) => {
+          if (res.state === "denied") setGeoState("denied");
+          if (res.state === "granted") setGeoState("granted");
+        })
+        .catch(() => undefined);
+    }
 
     let mounted = true;
     const push = async (payload: GeoPayload) => {
@@ -65,6 +81,7 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        setGeoState("granted");
         const latitude = Number(position.coords.latitude.toFixed(6));
         const longitude = Number(position.coords.longitude.toFixed(6));
         void push({
@@ -74,7 +91,7 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
         });
       },
       () => {
-        // Ignore geolocation errors in UI flow
+        setGeoState("denied");
       },
       {
         enableHighAccuracy: false,
@@ -101,6 +118,31 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [maxSilenceMs, minIntervalMs, minMoveMeters, role]);
+
+  if (role !== "commercial") return null;
+  if (geoState === "denied" || geoState === "unsupported") {
+    return (
+      <div className="fixed bottom-4 right-4 z-40">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            if (!("geolocation" in navigator)) {
+              setGeoState("unsupported");
+              return;
+            }
+            navigator.geolocation.getCurrentPosition(
+              () => setGeoState("granted"),
+              () => setGeoState("denied"),
+              { enableHighAccuracy: false, timeout: 12000, maximumAge: 0 },
+            );
+          }}
+        >
+          Activer localisation
+        </Button>
+      </div>
+    );
+  }
 
   return null;
 }
