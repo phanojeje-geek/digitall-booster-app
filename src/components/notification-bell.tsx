@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { mockNotifications } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -27,6 +27,70 @@ export function NotificationBell() {
   );
   const [pendingProjects, setPendingProjects] = useState(0);
   const [realtimeOk, setRealtimeOk] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return window.localStorage.getItem("notif_sound_enabled") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const didInitialLoadRef = useRef(false);
+  const lastActiveIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("notif_sound_enabled", soundEnabled ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return;
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+      const ctx = audioCtxRef.current;
+      void ctx.resume().catch(() => undefined);
+      audioUnlockedRef.current = true;
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  const playBeep = useCallback(() => {
+    if (!soundEnabled) return;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+    const ctx = audioCtxRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch(() => undefined);
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 740;
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -78,6 +142,18 @@ export function NotificationBell() {
       const readSet = new Set(reads.map((r) => r.notification_id));
       const trashedSet = new Set(reads.filter((r) => Boolean((r as { trashed_at?: string | null }).trashed_at)).map((r) => r.notification_id));
       const deletedSet = new Set(reads.filter((r) => Boolean((r as { deleted_at?: string | null }).deleted_at)).map((r) => r.notification_id));
+
+      const active = filtered
+        .filter((item) => !deletedSet.has(item.id))
+        .filter((item) => !trashedSet.has(item.id))
+        .filter((item) => (item as { owner_id?: string | null }).owner_id !== currentUserId);
+      const activeIds = new Set(active.map((n) => n.id));
+      const hasNew = Array.from(activeIds).some((id) => !lastActiveIdsRef.current.has(id));
+      lastActiveIdsRef.current = activeIds;
+      if (didInitialLoadRef.current && hasNew && document.visibilityState === "visible") {
+        playBeep();
+      }
+      didInitialLoadRef.current = true;
 
       const visible = filtered
         .filter((item) => !deletedSet.has(item.id))
@@ -135,7 +211,7 @@ export function NotificationBell() {
       document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(poll);
     };
-  }, [supabase, view, open]);
+  }, [open, playBeep, supabase, view]);
 
   const unread = items.filter((n) => !n.read).length;
   const badgeCount = unread + pendingProjects;
@@ -235,6 +311,9 @@ export function NotificationBell() {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold">{view === "trash" ? "Corbeille" : "Notifications"}</p>
                 <div className="flex items-center gap-1">
+                  <Button type="button" variant="ghost" onClick={() => setSoundEnabled((v) => !v)}>
+                    Son: {soundEnabled ? "ON" : "OFF"}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
