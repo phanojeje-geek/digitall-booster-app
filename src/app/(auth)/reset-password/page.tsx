@@ -9,6 +9,20 @@ import { PasswordInput } from "@/components/ui/password-input";
 type ViewState = "loading" | "ready" | "done" | "error";
 type OtpType = "signup" | "invite" | "magiclink" | "recovery" | "email_change";
 
+function toFriendlyErrorMessage(raw: string) {
+  const msg = raw.toLowerCase();
+  if (msg.includes("code verifier") || msg.includes("code_verifier")) {
+    return "Lien de reinitialisation incompatible (PKCE). Ouvrez le lien sur le meme appareil que celui qui a demande le reset, ou mettez a jour le template email Supabase pour utiliser token_hash.";
+  }
+  if (msg.includes("access_denied") || msg.includes("access denied")) {
+    return "Acces refuse. Relancez la reinitialisation du mot de passe puis reessayez.";
+  }
+  if (msg.includes("invalid") && msg.includes("otp")) {
+    return "Lien de reinitialisation invalide ou expire. Relancez la reinitialisation puis reessayez.";
+  }
+  return raw;
+}
+
 function parseHashParams(hash: string) {
   const clean = hash.startsWith("#") ? hash.slice(1) : hash;
   return new URLSearchParams(clean);
@@ -86,7 +100,7 @@ export default function ResetPasswordPage() {
       } catch (err) {
         const text = err instanceof Error ? err.message : "Erreur inconnue";
         if (!cancelled) {
-          setMessage(text);
+          setMessage(toFriendlyErrorMessage(text));
           setState("error");
         }
       }
@@ -127,7 +141,7 @@ export default function ResetPasswordPage() {
       setState("done");
     } catch (err) {
       const text = err instanceof Error ? err.message : "Erreur inconnue";
-      setMessage(text);
+      setMessage(toFriendlyErrorMessage(text));
       setState("error");
     } finally {
       setPending(false);
