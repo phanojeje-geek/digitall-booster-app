@@ -15,6 +15,8 @@ import {
   updateClientSubscriptionAction,
 } from "@/features/clients/actions";
 
+export const dynamic = "force-dynamic";
+
 type ClientListRow = {
   id: string;
   nom: string;

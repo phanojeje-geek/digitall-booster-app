@@ -44,7 +44,7 @@ function getRoleTitle(role: Role) {
 
 function getRoleMetricKeys(role: Role) {
   if (role === "admin") return ["clients", "projects", "reports", "activity"] as MetricKey[];
-  if (role === "commercial") return ["clients", "projects", "reports"] as MetricKey[];
+  if (role === "commercial") return ["clients"] as MetricKey[];
   if (role === "marketing") return ["projects", "reports", "activity"] as MetricKey[];
   return ["projects", "reports", "activity"] as MetricKey[];
 }
@@ -84,27 +84,7 @@ function toRoleWidgetData(input: {
 }
 
 function RoleWidgets({ role, data }: { role: Role; data: RoleWidgetData }) {
-  if (role === "commercial") {
-    const totalClients = data.clientsStatus.prospect + data.clientsStatus.enCours + data.clientsStatus.client;
-    const conversionRate = totalClients ? Math.round((data.clientsStatus.client / totalClients) * 100) : 0;
-    return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-50">Pipeline Commercial</h2>
-          <div className="space-y-2 text-sm">
-            <p>Prospects: {data.clientsStatus.prospect}</p>
-            <p>En cours: {data.clientsStatus.enCours}</p>
-            <p>Clients signes: {data.clientsStatus.client}</p>
-          </div>
-        </Card>
-        <Card>
-          <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-50">Conversion</h2>
-          <p className="text-3xl font-semibold text-zinc-900 dark:text-white">{conversionRate}%</p>
-          <p className="mt-1 text-sm text-zinc-500">Taux de conversion prospects vers clients.</p>
-        </Card>
-      </div>
-    );
-  }
+  if (role === "commercial") return null;
 
   const totalReports = data.reportsStatus.enCours + data.reportsStatus.termine;
   const doneRate = totalReports ? Math.round((data.reportsStatus.termine / totalReports) * 100) : 0;
