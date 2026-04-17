@@ -22,8 +22,8 @@ export default async function LoginPage({
       </div>
 
       {params.error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-          {params.error}
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          {getErrorMessage(params.error)}
         </p>
       ) : null}
 
@@ -44,6 +44,19 @@ export default async function LoginPage({
       </p>
     </div>
   );
+}
+
+function getErrorMessage(error: string): string {
+  const errorMap: Record<string, string> = {
+    "Invalid login credentials": "Adresse email ou mot de passe incorrect",
+    "Email not confirmed": "Email non confirmé. Veuillez vérifier votre boîte mail",
+    "User not found": "Utilisateur non trouvé",
+    "Too many requests": "Trop de tentatives de connexion. Veuillez réessayer plus tard",
+    "Network error": "Erreur de réseau. Vérifiez votre connexion internet",
+    "invalid_grant": "Session expirée. Veuillez vous reconnecter",
+  };
+  
+  return errorMap[error] || `Erreur de connexion: ${error}`;
 }
 
 function CardBlock({ title, children }: { title: string; children: React.ReactNode }) {

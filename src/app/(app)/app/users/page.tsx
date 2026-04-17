@@ -83,26 +83,41 @@ export default async function UsersPage() {
     ];
   } else {
     const supabase = createAdminClient();
-    const [{ data }, { data: logs }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "id,full_name,email,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
-        )
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("connection_logs")
-        .select("id,user_id,status,login_at,logout_at,geo_label,latitude,longitude")
-        .order("login_at", { ascending: false })
-        .limit(300),
-    ]);
-    users = (data ?? []) as UserRow[];
-    const castLogs = (logs ?? []) as ConnectionLogRow[];
-    logsByUser = castLogs.reduce<Record<string, ConnectionLogRow[]>>((acc, log) => {
-      if (!acc[log.user_id]) acc[log.user_id] = [];
-      if (acc[log.user_id].length < 5) acc[log.user_id].push(log);
-      return acc;
-    }, {});
+    
+    try {
+      const [{ data, error: profilesError }, { data: logs, error: logsError }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "id,full_name,email,role,sales_group,is_blocked,access_reset_at,connection_status,last_login_at,last_logout_at,last_latitude,last_longitude,last_geo_label,created_at",
+          )
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("connection_logs")
+          .select("id,user_id,status,login_at,logout_at,geo_label,latitude,longitude")
+          .order("login_at", { ascending: false })
+          .limit(300),
+      ]);
+      
+      if (profilesError) {
+        console.error("Erreur lors de la récupération des profils:", profilesError);
+      }
+      if (logsError) {
+        console.error("Erreur lors de la récupération des logs:", logsError);
+      }
+      
+      users = (data ?? []) as UserRow[];
+      const castLogs = (logs ?? []) as ConnectionLogRow[];
+      logsByUser = castLogs.reduce<Record<string, ConnectionLogRow[]>>((acc, log) => {
+        if (!acc[log.user_id]) acc[log.user_id] = [];
+        if (acc[log.user_id].length < 5) acc[log.user_id].push(log);
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error("Erreur critique lors du chargement des utilisateurs:", error);
+      users = [];
+      logsByUser = {};
+    }
   }
 
   return (

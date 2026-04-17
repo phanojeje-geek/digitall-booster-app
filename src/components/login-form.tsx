@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import type { signInAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Spinner } from "@/components/ui/spinner";
 
 type SignInActionType = typeof signInAction;
@@ -42,7 +43,7 @@ export function LoginForm({ action }: { action: SignInActionType }) {
       <input type="hidden" name="geo_lng" value={geo.lng ?? ""} />
       <input type="hidden" name="geo_label" value={geo.label ?? ""} />
       <Input name="email" type="email" required placeholder="Email" />
-      <Input name="password" type="password" required placeholder="Mot de passe" />
+      <PasswordInput name="password" required placeholder="Mot de passe" />
       <SubmitButton />
     </form>
   );

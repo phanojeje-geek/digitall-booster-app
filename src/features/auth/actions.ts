@@ -30,15 +30,9 @@ export async function signInAction(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    const msg = String(error.message ?? "");
-    const friendly =
-      msg.toLowerCase().includes("invalid login") ||
-      msg.toLowerCase().includes("invalid credentials") ||
-      msg.toLowerCase().includes("invalid") ||
-      msg.toLowerCase().includes("wrong")
-        ? "Email ou mot de passe incorrect."
-        : "Connexion impossible. Verifiez votre connexion internet puis reessayez.";
-    redirect(`/login?error=${encodeURIComponent(friendly)}`);
+    console.error("Erreur de connexion Supabase:", error);
+    const raw = String(error.message ?? "");
+    redirect(`/login?error=${encodeURIComponent(raw)}`);
   }
 
   const user = data.user;
