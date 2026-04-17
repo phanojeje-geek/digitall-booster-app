@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
 import { CommercialGroupsMap } from "@/components/commercial-groups-map";
+import { FlashBanner } from "@/components/flash-banner";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -52,12 +53,7 @@ type ConnectionLogRow = {
 
 const roles: Role[] = ["admin", "commercial", "marketing", "dev", "designer"];
 
-export default async function UsersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; reset?: string; password?: string }>;
-}) {
-  const params = await searchParams;
+export default async function UsersPage() {
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") {
     redirect("/app?forbidden=1");
@@ -136,27 +132,7 @@ export default async function UsersPage({
         ) : null}
       </div>
 
-      {params.reset ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Email de reinitialisation envoye.
-        </p>
-      ) : null}
-
-      {params.password ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Mot de passe mis a jour.
-        </p>
-      ) : null}
-
-      {params.error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-          {params.error === "reset"
-            ? "Reset impossible. Verifiez les URLs de redirection Supabase puis reessayez."
-            : params.error === "password"
-              ? "Changement de mot de passe impossible. Reessayez."
-              : "Operation impossible. Reessayez."}
-        </p>
-      ) : null}
+      <FlashBanner />
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">Creer un utilisateur</h2>
