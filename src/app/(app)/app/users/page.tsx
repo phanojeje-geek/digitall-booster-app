@@ -5,7 +5,7 @@ import { ConfirmForm } from "@/components/confirm-form";
 import { CommercialGroupsMap } from "@/components/commercial-groups-map";
 import { getCurrentProfile } from "@/lib/auth";
 import { isDemoMode } from "@/lib/runtime";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   bootstrapStorageBucketsAction,
   createUserAccountAction,
@@ -82,7 +82,7 @@ export default async function UsersPage() {
       },
     ];
   } else {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const [{ data }, { data: logs }] = await Promise.all([
       supabase
         .from("profiles")

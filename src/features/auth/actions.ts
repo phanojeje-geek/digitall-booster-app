@@ -16,7 +16,7 @@ export async function signUpAction(formData: FormData) {
 }
 
 export async function signInAction(formData: FormData) {
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const geoLatRaw = String(formData.get("geo_lat") ?? "");
   const geoLngRaw = String(formData.get("geo_lng") ?? "");
