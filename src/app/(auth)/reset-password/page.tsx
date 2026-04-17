@@ -1,11 +1,13 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 
 type ViewState = "loading" | "ready" | "done" | "error";
+type OtpType = "signup" | "invite" | "magiclink" | "recovery" | "email_change";
 
 function parseHashParams(hash: string) {
   const clean = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -18,7 +20,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [pending, setPending] = useState(false);
-  const supabaseRef = useRef<any>(null);
+  const supabaseRef = useRef<SupabaseClient | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,11 +37,22 @@ export default function ResetPasswordPage() {
         supabaseRef.current = client;
 
         const url = new URL(window.location.href);
+        const queryParams = url.searchParams;
         const hashParams = parseHashParams(window.location.hash);
 
-        const code = url.searchParams.get("code");
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
+        const getParam = (key: string) => queryParams.get(key) ?? hashParams.get(key);
+
+        const error = getParam("error");
+        const errorDescription = getParam("error_description");
+        if (error) {
+          throw new Error(decodeURIComponent(errorDescription ?? error));
+        }
+
+        const code = getParam("code");
+        const accessToken = getParam("access_token");
+        const refreshToken = getParam("refresh_token");
+        const type = getParam("type");
+        const tokenHash = getParam("token_hash") ?? getParam("token");
 
         if (code) {
           const { error } = await client.auth.exchangeCodeForSession(code);
@@ -49,6 +62,14 @@ export default function ResetPasswordPage() {
             access_token: accessToken,
             refresh_token: refreshToken,
           });
+          if (error) throw error;
+        } else if (tokenHash && type) {
+          const allowedTypes = new Set<OtpType>(["signup", "invite", "magiclink", "recovery", "email_change"]);
+          const otpType = allowedTypes.has(type as OtpType) ? (type as OtpType) : null;
+          if (!otpType) {
+            throw new Error("Type de lien non supporte.");
+          }
+          const { error } = await client.auth.verifyOtp({ type: otpType, token_hash: tokenHash });
           if (error) throw error;
         } else {
           throw new Error("Lien de reinitialisation invalide ou incomplet.");

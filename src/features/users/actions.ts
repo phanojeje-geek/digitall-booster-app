@@ -167,8 +167,13 @@ export async function resetUserAccessAction(formData: FormData) {
 
     if (target?.email) {
       const headerStore = await headers();
+      const forwardedProto = headerStore.get("x-forwarded-proto") ?? "https";
+      const forwardedHost = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
+      const derivedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : null;
+
       const origin =
         headerStore.get("origin") ??
+        derivedOrigin ??
         process.env.NEXT_PUBLIC_SITE_URL ??
         process.env.NEXT_PUBLIC_APP_URL ??
         "http://localhost:3000";
@@ -179,7 +184,8 @@ export async function resetUserAccessAction(formData: FormData) {
 
     revalidatePath("/app/users");
     redirect("/app/users?reset=1");
-  } catch {
+  } catch (error) {
+    console.error("Erreur reset password:", error);
     redirect("/app/users?error=reset");
   }
 }
