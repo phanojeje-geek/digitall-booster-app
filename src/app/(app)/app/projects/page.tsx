@@ -9,7 +9,6 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createProjectAction,
   deleteProjectAction,
-  markProjectDoneAction,
   takeProjectAction,
   updateProjectStatusAction,
 } from "@/features/projects/actions";
@@ -47,6 +46,12 @@ export default async function ProjectsPage() {
   const visibleProjects = isAdmin
     ? projects
     : (projects ?? []).filter((p) => p.assigned_to === null || p.assigned_to === user.id);
+
+  const statusColors: Record<(typeof statuses)[number], string> = {
+    "en attente": "from-amber-500 via-orange-500 to-rose-500",
+    "en cours": "from-sky-500 via-indigo-500 to-fuchsia-500",
+    termine: "from-emerald-500 via-cyan-500 to-sky-500",
+  };
 
   return (
     <div className="space-y-5">
@@ -108,12 +113,16 @@ export default async function ProjectsPage() {
 
       <div className="grid gap-3 md:grid-cols-3">
         {statuses.map((status) => (
-          <Card key={status} className="space-y-2">
+          <Card key={status} className="space-y-2 overflow-hidden">
+            <div className={`h-1 w-full bg-linear-to-r ${statusColors[status]}`} />
             <h2 className="font-semibold capitalize">{status}</h2>
             {(visibleProjects ?? [])
               .filter((project) => project.statut === status)
               .map((project) => (
-                <div key={project.id} className="rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
+                <div
+                  key={project.id}
+                  className="rounded-xl bg-zinc-100 p-3 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900"
+                >
                   <p className="font-medium">{project.nom}</p>
                   <p className="text-xs text-zinc-500">{project.type}</p>
                   <div className="mt-2 flex gap-2">
@@ -145,8 +154,9 @@ export default async function ProjectsPage() {
                         </Button>
                       </ConfirmForm>
                     ) : canWork && status === "en cours" && project.assigned_to === user.id ? (
-                      <ConfirmForm action={markProjectDoneAction} confirmMessage="Confirmer que ce projet est termine ?">
+                      <ConfirmForm action={updateProjectStatusAction} confirmMessage="Une fois termine, vous ne pourrez plus revenir en arriere. Confirmer ?">
                         <input type="hidden" name="id" value={project.id} />
+                        <input type="hidden" name="statut" value="termine" />
                         <Button type="submit" variant="secondary">
                           Terminer
                         </Button>

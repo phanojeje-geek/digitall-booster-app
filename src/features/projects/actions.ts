@@ -76,6 +76,14 @@ export async function markProjectDoneAction(formData: FormData) {
   if (!projectId) return;
 
   const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("projects")
+    .select("id,statut")
+    .eq("id", projectId)
+    .eq("assigned_to", user.id)
+    .maybeSingle();
+  if (!current?.id) return;
+  if (current.statut !== "en cours") return;
   await supabase.from("projects").update({ statut: "termine" }).eq("id", projectId).eq("assigned_to", user.id);
   await supabase.from("notifications").insert({
     owner_id: user.id,
@@ -98,11 +106,24 @@ export async function updateProjectStatusAction(formData: FormData) {
   const projectId = String(formData.get("id") ?? "");
   if (!projectId) return;
 
-  const q = supabase.from("projects").update({ statut: next }).eq("id", projectId);
   if (profile?.role !== "admin") {
-    q.eq("assigned_to", user.id);
+    const allowed = new Set(["en cours", "termine"]);
+    if (!allowed.has(next)) return;
+    const { data: current } = await supabase
+      .from("projects")
+      .select("id,statut")
+      .eq("id", projectId)
+      .eq("assigned_to", user.id)
+      .maybeSingle();
+    if (!current?.id) return;
+    if (current.statut === "termine") return;
+    if (current.statut === "en attente" && next !== "en cours") return;
+    if (current.statut === "en cours" && next !== "termine") return;
+    await supabase.from("projects").update({ statut: next }).eq("id", projectId).eq("assigned_to", user.id);
+  } else {
+    await supabase.from("projects").update({ statut: next }).eq("id", projectId);
   }
-  await q;
+
   await supabase.from("notifications").insert({
     owner_id: user.id,
     message: "Un projet a ete mis a jour.",
