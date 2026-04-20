@@ -30,7 +30,11 @@ export function ClientRegistrationForm() {
       }
 
       await createClientAction(formData);
-    } catch (error) {
+    } catch (error: any) {
+      // Next.js redirect() throws an error, we should not treat it as a failure
+      if (error.message === "NEXT_REDIRECT") {
+        return;
+      }
       console.error("Submission error:", error);
       alert("Une erreur est survenue lors de l'enregistrement. Vérifiez votre connexion.");
     } finally {
