@@ -95,13 +95,20 @@ export async function createClientAction(formData: FormData) {
     owner_id: user.id,
   };
 
-  await supabase.from("clients").insert(payload);
+  const { error } = await supabase.from("clients").insert(payload);
+  if (error) {
+    console.error("Error creating client:", error);
+    return;
+  }
+
   await supabase.from("notifications").insert({
     owner_id: user.id,
-    message: `Nouveau client ajoute: ${payload.nom}`,
+    message: `Nouveau client ajouté: ${payload.nom}`,
   });
+
   revalidatePath("/app/clients");
   revalidatePath("/app");
+  redirect("/app/clients");
 }
 
 export async function updateClientAction(formData: FormData) {
