@@ -17,8 +17,8 @@ export function ClientRegistrationForm() {
     if (!window.confirm("Confirmer l'enregistrement de ce client ?")) return;
 
     setIsSubmitting(true);
+    const formData = new FormData(event.currentTarget);
     try {
-      const formData = new FormData(event.currentTarget);
       
       // Compress identity documents
       const docFields = ["doc_cni_recto", "doc_cni_verso", "doc_passeport", "doc_autre"];
