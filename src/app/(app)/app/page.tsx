@@ -113,39 +113,82 @@ type AdminAnalytics = {
   projectProgress: Array<{ project: string; progress: number }>;
 };
 
-function AdminWidgets({ analytics }: { analytics: AdminAnalytics }) {
+function AdminWidgets({
+  analytics,
+  commercialStats,
+}: {
+  analytics: AdminAnalytics;
+  commercialStats: Array<{ name: string; count: number; revenue: number }>;
+}) {
+  const totalRevenue = commercialStats.reduce((sum, s) => sum + s.revenue, 0);
+  const maxClients = Math.max(...commercialStats.map((s) => s.count), 1);
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 lg:grid-cols-3">
-        {analytics.byTeam.map((item) => (
-          <Card key={item.team}>
-            <h2 className="mb-1 text-base font-semibold capitalize">{item.team}</h2>
-            <p className="text-sm text-zinc-500">Utilisateurs: {item.users}</p>
-            <p className="text-sm text-zinc-500">Rapports: {item.reports}</p>
-          </Card>
-        ))}
+        <Card className="bg-linear-to-br from-indigo-600 to-violet-700 text-white">
+          <p className="text-sm opacity-80">Chiffre d'Affaires Global</p>
+          <p className="text-3xl font-bold">{totalRevenue.toLocaleString("fr-FR")} FCFA</p>
+          <p className="mt-1 text-xs opacity-60">Basé sur les abonnements validés</p>
+        </Card>
+        <Card className="bg-linear-to-br from-emerald-600 to-teal-700 text-white">
+          <p className="text-sm opacity-80">Meilleur Commercial</p>
+          <p className="text-3xl font-bold">{commercialStats[0]?.name || "N/A"}</p>
+          <p className="mt-1 text-xs opacity-60">{commercialStats[0]?.count || 0} clients enregistrés</p>
+        </Card>
+        <Card className="bg-linear-to-br from-amber-500 to-orange-600 text-white">
+          <p className="text-sm opacity-80">Taux de Conversion</p>
+          <p className="text-3xl font-bold">{Math.round((analytics.projectProgress.length / (commercialStats.length || 1)) * 10)}%</p>
+          <p className="mt-1 text-xs opacity-60">Projets vs Prospects</p>
+        </Card>
       </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 text-base font-semibold">Activite par utilisateur</h2>
-          <div className="space-y-2 text-sm">
-            {analytics.byUser.map((item) => (
-              <p key={item.user}>
-                {item.user}: {item.reports} rapports
-              </p>
+          <h2 className="mb-4 text-base font-semibold flex items-center gap-2">
+            <Users className="text-indigo-500" size={18} />
+            Performance des Commerciaux
+          </h2>
+          <div className="space-y-4">
+            {commercialStats.map((item) => (
+              <div key={item.name} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">{item.name}</span>
+                  <span className="text-zinc-500">{item.count} clients</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 transition-all"
+                    style={{ width: `${(item.count / maxClients) * 100}%` }}
+                  />
+                </div>
+              </div>
             ))}
-            {analytics.byUser.length === 0 ? <p className="text-zinc-500">Aucune activite.</p> : null}
+            {commercialStats.length === 0 ? <p className="text-zinc-500 text-sm">Aucune donnée commerciale.</p> : null}
           </div>
         </Card>
+
         <Card>
-          <h2 className="mb-3 text-base font-semibold">Progression projets</h2>
-          <div className="space-y-2 text-sm">
-            {analytics.projectProgress.map((item) => (
-              <p key={item.project}>
-                {item.project}: {item.progress}%
-              </p>
+          <h2 className="mb-4 text-base font-semibold flex items-center gap-2">
+            <Activity className="text-emerald-500" size={18} />
+            Progression des Projets
+          </h2>
+          <div className="space-y-4">
+            {analytics.projectProgress.slice(0, 5).map((item) => (
+              <div key={item.project} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">{item.project}</span>
+                  <span className="text-zinc-500">{item.progress}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${item.progress}%` }}
+                  />
+                </div>
+              </div>
             ))}
-            {analytics.projectProgress.length === 0 ? <p className="text-zinc-500">Aucun projet.</p> : null}
+            {analytics.projectProgress.length === 0 ? <p className="text-zinc-500 text-sm">Aucun projet en cours.</p> : null}
           </div>
         </Card>
       </div>
@@ -389,8 +432,10 @@ export default async function DashboardPage({
   };
 
   let adminAnalytics: AdminAnalytics | null = null;
+  let commercialStats: Array<{ name: string; count: number; revenue: number }> = [];
+
   if (isAdmin) {
-    const [{ data: usersRows }, { data: reportRows }, { data: projectRows }] = await Promise.all([
+    const [{ data: usersRows }, { data: reportRows }, { data: projectRows }, { data: clientsRows }] = await Promise.all([
       supabase.from("profiles").select("id,full_name,role").order("created_at", { ascending: false }).limit(500),
       supabase
         .from("activity_reports")
@@ -398,13 +443,16 @@ export default async function DashboardPage({
         .order("created_at", { ascending: false })
         .limit(2000),
       supabase.from("projects").select("id,nom").order("created_at", { ascending: false }).limit(500),
+      supabase.from("clients").select("owner_id,subscription_type").limit(1000),
     ]);
 
     const users = (usersRows ?? []) as Array<{ id: string; full_name: string | null; role: string }>;
     const reportsAll = (reportRows ?? []) as Array<{ user_id: string; project_id: string; status: string }>;
     const projectsAll = (projectRows ?? []) as Array<{ id: string; nom: string }>;
+    const clientsAll = (clientsRows ?? []) as Array<{ owner_id: string; subscription_type: string }>;
 
     const userRoleById = new Map(users.map((u) => [u.id, u.role]));
+    const userNameById = new Map(users.map((u) => [u.id, u.full_name || u.id]));
 
     const teams: Array<"dev" | "marketing" | "designer"> = ["dev", "marketing", "designer"];
     const usersCountByTeam = new Map(teams.map((t) => [t, 0]));
@@ -415,10 +463,8 @@ export default async function DashboardPage({
     }
 
     const reportsCountByTeam = new Map(teams.map((t) => [t, 0]));
-    const reportCountByUser = new Map<string, number>();
     const progressByProject = new Map<string, { total: number; done: number }>();
     for (const r of reportsAll) {
-      reportCountByUser.set(r.user_id, (reportCountByUser.get(r.user_id) ?? 0) + 1);
       const role = userRoleById.get(r.user_id);
       if (reportsCountByTeam.has(role as (typeof teams)[number])) {
         reportsCountByTeam.set(role as (typeof teams)[number], (reportsCountByTeam.get(role as (typeof teams)[number]) ?? 0) + 1);
@@ -429,19 +475,28 @@ export default async function DashboardPage({
       progressByProject.set(r.project_id, prev);
     }
 
+    // Calculate Commercial Stats
+    const commMap = new Map<string, { count: number; revenue: number }>();
+    for (const c of clientsAll) {
+      const stats = commMap.get(c.owner_id) ?? { count: 0, revenue: 0 };
+      stats.count += 1;
+      if (c.subscription_type === "6-mois") stats.revenue += 5000;
+      if (c.subscription_type === "12-mois") stats.revenue += 10000;
+      commMap.set(c.owner_id, stats);
+    }
+
+    commercialStats = Array.from(commMap.entries())
+      .map(([id, stats]) => ({
+        name: userNameById.get(id) || "Inconnu",
+        ...stats,
+      }))
+      .sort((a, b) => b.count - a.count);
+
     const byTeam = teams.map((team) => ({
       team,
       users: usersCountByTeam.get(team) ?? 0,
       reports: reportsCountByTeam.get(team) ?? 0,
     }));
-
-    const byUser = users
-      .map((u) => ({
-        user: u.full_name || u.id,
-        reports: reportCountByUser.get(u.id) ?? 0,
-      }))
-      .sort((a, b) => b.reports - a.reports)
-      .slice(0, 8);
 
     const projectProgress = projectsAll.map((project) => {
       const data = progressByProject.get(project.id) ?? { total: 0, done: 0 };
@@ -449,7 +504,7 @@ export default async function DashboardPage({
       return { project: project.nom, progress };
     });
 
-    adminAnalytics = { byTeam, byUser, projectProgress };
+    adminAnalytics = { byTeam, byUser: [], projectProgress };
   }
 
   return (
@@ -501,7 +556,9 @@ export default async function DashboardPage({
         ) : null}
       </div>
       <RoleWidgets role={role} data={roleData} />
-      {isAdmin && adminAnalytics ? <AdminWidgets analytics={adminAnalytics} /> : null}
+      {isAdmin && adminAnalytics ? (
+        <AdminWidgets analytics={adminAnalytics} commercialStats={commercialStats} />
+      ) : null}
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Fil d activite</h2>
         <div className="space-y-2">
