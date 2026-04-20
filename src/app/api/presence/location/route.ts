@@ -34,7 +34,28 @@ export async function POST(request: Request) {
 
     const latitude = typeof body.latitude === "number" ? body.latitude : null;
     const longitude = typeof body.longitude === "number" ? body.longitude : null;
-    const label = typeof body.label === "string" ? body.label : null;
+    let label = typeof body.label === "string" ? body.label : null;
+
+    // Reverse geocoding for human-readable label
+    if (latitude !== null && longitude !== null) {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+          {
+            headers: { "User-Agent": "DigitallBoosterApp/1.0" },
+          },
+        );
+        if (geoRes.ok) {
+          const geoJson = await geoRes.json();
+          if (geoJson.display_name) {
+            label = geoJson.display_name;
+          }
+        }
+      } catch {
+        // Keep original label on failure
+      }
+    }
+
     const now = new Date().toISOString();
 
     await supabase
