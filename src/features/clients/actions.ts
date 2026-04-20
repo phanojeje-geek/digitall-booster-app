@@ -95,10 +95,43 @@ export async function createClientAction(formData: FormData) {
     owner_id: user.id,
   };
 
-  const { error } = await supabase.from("clients").insert(payload);
-  if (error) {
-    console.error("Error creating client:", error);
+  const { data: newClient, error: clientError } = await supabase.from("clients").insert(payload).select("id").single();
+  if (clientError || !newClient) {
+    console.error("Error creating client:", clientError);
     return;
+  }
+
+  // Handle signature
+  const signatureDataUrl = String(formData.get("signature_data_url") ?? "");
+  if (signatureDataUrl) {
+    await supabase.from("client_signatures").insert({
+      owner_id: user.id,
+      client_id: newClient.id,
+      signature_data_url: signatureDataUrl,
+    });
+  }
+
+  // Handle documents
+  const docFields = ["doc_cni_recto", "doc_cni_verso", "doc_passeport", "doc_autre"];
+  const adminClient = createAdminClient();
+  
+  for (const field of docFields) {
+    const file = formData.get(field);
+    if (file instanceof File && file.size > 0) {
+      const docType = field.replace("doc_", "");
+      const path = `${user.id}/${newClient.id}/${docType}-${Date.now()}-${file.name}`;
+      
+      const { error: uploadError } = await adminClient.storage.from("client-documents").upload(path, file);
+      if (!uploadError) {
+        await supabase.from("client_documents").insert({
+          owner_id: user.id,
+          client_id: newClient.id,
+          doc_type: docType,
+          storage_path: path,
+          file_name: file.name,
+        });
+      }
+    }
   }
 
   await supabase.from("notifications").insert({

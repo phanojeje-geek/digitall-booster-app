@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
+import { SignaturePad } from "@/components/signature-pad";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -167,6 +168,7 @@ export default async function ClientsPage({
             action={createClientAction}
             confirmMessage="Confirmer l enregistrement de ce client ?"
             className="grid gap-3 md:grid-cols-3"
+            encType="multipart/form-data"
           >
             <input type="hidden" name="statut" value="client" />
             <div className="md:col-span-3">
@@ -244,14 +246,38 @@ export default async function ClientsPage({
               />
             </div>
 
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Validation</p>
+            <div className="md:col-span-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <p className="text-sm font-semibold">Documents d'identité</p>
+              <p className="text-xs text-zinc-500 mb-3">Prenez une photo des pièces d'identité (CNI recto/verso, Passeport, etc.)</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] uppercase font-bold text-zinc-500">CNI Recto (ou Document Principal)</label>
+                  <input type="file" name="doc_cni_recto" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] uppercase font-bold text-zinc-500">CNI Verso</label>
+                  <input type="file" name="doc_cni_verso" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] uppercase font-bold text-zinc-500">Passeport</label>
+                  <input type="file" name="doc_passeport" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] uppercase font-bold text-zinc-500">Autre Document</label>
+                  <input type="file" name="doc_autre" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
+                </div>
+              </div>
             </div>
-            <Input name="responsible_name" placeholder="Nom du responsable" />
-            <Input name="signed_at" placeholder="Date (ex: 2026-04-15)" />
 
-            <div className="md:col-span-3">
-              <Button type="submit">Enregistrer (Client)</Button>
+            <div className="md:col-span-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <p className="text-sm font-semibold mb-3">Signature du client</p>
+              <SignaturePad />
+            </div>
+
+            <div className="md:col-span-3 pt-4">
+              <Button type="submit" className="w-full md:w-auto px-10 py-6 text-base font-bold shadow-lg shadow-indigo-500/20">
+                Finaliser l'enregistrement
+              </Button>
             </div>
           </ConfirmForm>
         </Card>
