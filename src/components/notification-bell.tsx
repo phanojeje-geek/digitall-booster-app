@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/browser";
 import { mockNotifications } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
 import { Button } from "@/components/ui/button";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { Capacitor } from "@capacitor/core";
 
 type NotificationItem = {
   id: string;
@@ -92,6 +94,35 @@ export function NotificationBell() {
     osc.stop(now + 0.2);
   }, [soundEnabled]);
 
+  const sendNativeNotification = useCallback(
+    async (title: string, body: string) => {
+      if (!Capacitor.isNativePlatform()) return;
+      try {
+        const perm = await LocalNotifications.checkPermissions();
+        if (perm.display !== "granted") {
+          await LocalNotifications.requestPermissions();
+        }
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title,
+              body,
+              id: Math.floor(Math.random() * 1000000),
+              schedule: { at: new Date(Date.now() + 100) },
+              sound: "beep.wav",
+              attachments: [],
+              actionTypeId: "",
+              extra: null,
+            },
+          ],
+        });
+      } catch (e) {
+        console.error("Native notification error:", e);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -149,9 +180,17 @@ export function NotificationBell() {
         .filter((item) => (item as { owner_id?: string | null }).owner_id !== currentUserId);
       const activeIds = new Set(active.map((n) => n.id));
       const hasNew = Array.from(activeIds).some((id) => !lastActiveIdsRef.current.has(id));
+      const newItems = active.filter((n) => !lastActiveIdsRef.current.has(n.id));
+      
       lastActiveIdsRef.current = activeIds;
-      if (didInitialLoadRef.current && hasNew && document.visibilityState === "visible") {
-        playBeep();
+      if (didInitialLoadRef.current && hasNew) {
+        if (document.visibilityState === "visible") {
+          playBeep();
+        }
+        if (newItems.length > 0) {
+          const first = newItems[0]!;
+          void sendNativeNotification(first.title || "Nouvelle notification", first.message);
+        }
       }
       didInitialLoadRef.current = true;
 
