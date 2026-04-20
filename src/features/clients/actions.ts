@@ -252,7 +252,8 @@ export async function uploadClientDocumentAction(formData: FormData) {
   const docType = String(formData.get("doc_type") ?? "");
   const file = formData.get("file");
 
-  if (!clientId || !["cni", "passeport"].includes(docType) || !(file instanceof File)) {
+  const allowedTypes = ["cni", "passeport", "cni_recto", "cni_verso", "autre"];
+  if (!clientId || !allowedTypes.includes(docType) || !(file instanceof File)) {
     return;
   }
 
@@ -293,7 +294,7 @@ export async function saveClientSignatureAction(formData: FormData) {
   const clientId = String(formData.get("client_id") ?? "");
   const signatureDataUrl = String(formData.get("signature_data_url") ?? "");
 
-  if (!clientId || !signatureDataUrl.startsWith("data:image/")) {
+  if (!clientId || (!signatureDataUrl.startsWith("data:image/") && signatureDataUrl !== "CONSENT_CHECKED")) {
     return;
   }
 

@@ -41,6 +41,12 @@ type IntakeData = {
   activity_description?: string;
   responsible_name?: string;
   signed_at?: string;
+  validated_at?: string;
+  subscription?: {
+    plan?: string | null;
+    started_at?: string;
+    ends_at?: string | null;
+  };
 };
 
 function Value({ v }: { v: any }) {
