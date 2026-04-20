@@ -17,9 +17,9 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
   const hiddenRef = useRef(false);
   const [geoState, setGeoState] = useState<"unknown" | "unsupported" | "denied" | "granted">("unknown");
 
-  const minIntervalMs = useMemo(() => 25000, []);
+  const minIntervalMs = useMemo(() => 15000, []);
   const maxSilenceMs = useMemo(() => 2 * 60 * 1000, []);
-  const minMoveMeters = useMemo(() => 25, []);
+  const minMoveMeters = useMemo(() => 10, []);
 
   const metersBetween = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
     const toRad = (x: number) => (x * Math.PI) / 180;
@@ -94,9 +94,9 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
         setGeoState("denied");
       },
       {
-        enableHighAccuracy: false,
-        maximumAge: 60000,
-        timeout: 12000,
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
       },
     );
 
@@ -134,7 +134,7 @@ export function CommercialLiveLocation({ role }: { role: Role }) {
             navigator.geolocation.getCurrentPosition(
               () => setGeoState("granted"),
               () => setGeoState("denied"),
-              { enableHighAccuracy: false, timeout: 12000, maximumAge: 0 },
+              { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
             );
           }}
         >
