@@ -335,7 +335,15 @@ export default async function DashboardPage({
           ) : null}
         </div>
         <RoleWidgets role={role} data={roleData} />
-        {isAdmin ? <AdminWidgets analytics={adminAnalytics} /> : null}
+        {isAdmin ? (
+          <AdminWidgets
+            analytics={adminAnalytics}
+            commercialStats={[
+              { name: "Demo Commercial 1", count: 12, revenue: 60000 },
+              { name: "Demo Commercial 2", count: 8, revenue: 45000 },
+            ]}
+          />
+        ) : null}
       </div>
     );
   }
