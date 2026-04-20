@@ -124,6 +124,16 @@ export function NotificationBell() {
   );
 
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      void LocalNotifications.checkPermissions().then((perm) => {
+        if (perm.display !== "granted") {
+          void LocalNotifications.requestPermissions();
+        }
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
