@@ -34,113 +34,119 @@ export async function createClientAction(formData: FormData) {
     return;
   }
 
-  const user = await getCurrentUser();
-  const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "commercial") {
-    return;
-  }
-  const supabase = await createClient();
+  try {
+    const user = await getCurrentUser();
+    const profile = await getCurrentProfile();
+    if (!profile || profile.role !== "commercial") {
+      throw new Error("Non autorisé");
+    }
+    const supabase = await createClient();
 
-  const objectives = formData.getAll("objectives").map((v) => String(v)).filter(Boolean);
-  const subscriptionPlan = String(formData.get("subscription_plan") ?? "");
-  const months = planToMonths(subscriptionPlan);
-  const startedAt = new Date().toISOString();
-  const endsAt = months ? addMonths(new Date(startedAt), months).toISOString() : null;
-  const intakeData =
-    profile?.role === "commercial"
-      ? {
-          company: {
-            name: String(formData.get("entreprise") ?? ""),
-            sector: String(formData.get("company_sector") ?? ""),
-            legal_form: String(formData.get("company_legal_form") ?? ""),
-            address: String(formData.get("company_address") ?? ""),
-            city: String(formData.get("company_city") ?? ""),
-            country: String(formData.get("company_country") ?? ""),
-          },
-          contact: {
-            name: String(formData.get("nom") ?? ""),
-            position: String(formData.get("contact_position") ?? ""),
-            phone: String(formData.get("telephone") ?? ""),
-            whatsapp: String(formData.get("contact_whatsapp") ?? ""),
-            email: String(formData.get("email") ?? ""),
-          },
-          digital_presence: {
-            facebook: String(formData.get("facebook") ?? ""),
-            instagram: String(formData.get("instagram") ?? ""),
-            website: String(formData.get("website") ?? ""),
-            other_platforms: String(formData.get("other_platforms") ?? ""),
-          },
-          objectives,
-          subscription_plan: subscriptionPlan,
-          objectives_other: String(formData.get("objectives_other") ?? ""),
-          activity_description: String(formData.get("activity_description") ?? ""),
-          responsible_name: String(formData.get("responsible_name") ?? ""),
-          signed_at: String(formData.get("signed_at") ?? ""),
-          validated_at: startedAt,
-          subscription: {
-            plan: subscriptionPlan || null,
-            started_at: startedAt,
-            ends_at: endsAt,
-          },
-        }
-      : {};
+    const objectives = formData.getAll("objectives").map((v) => String(v)).filter(Boolean);
+    const subscriptionPlan = String(formData.get("subscription_plan") ?? "");
+    const months = planToMonths(subscriptionPlan);
+    const startedAt = new Date().toISOString();
+    const endsAt = months ? addMonths(new Date(startedAt), months).toISOString() : null;
+    
+    const intakeData = {
+      company: {
+        name: String(formData.get("entreprise") ?? ""),
+        sector: String(formData.get("company_sector") ?? ""),
+        legal_form: String(formData.get("company_legal_form") ?? ""),
+        address: String(formData.get("company_address") ?? ""),
+        city: String(formData.get("company_city") ?? ""),
+        country: String(formData.get("company_country") ?? ""),
+      },
+      contact: {
+        name: String(formData.get("nom") ?? ""),
+        position: String(formData.get("contact_position") ?? ""),
+        phone: String(formData.get("telephone") ?? ""),
+        whatsapp: String(formData.get("contact_whatsapp") ?? ""),
+        email: String(formData.get("email") ?? ""),
+      },
+      digital_presence: {
+        facebook: String(formData.get("facebook") ?? ""),
+        instagram: String(formData.get("instagram") ?? ""),
+        website: String(formData.get("website") ?? ""),
+        other_platforms: String(formData.get("other_platforms") ?? ""),
+      },
+      objectives,
+      subscription_plan: subscriptionPlan,
+      objectives_other: String(formData.get("objectives_other") ?? ""),
+      activity_description: String(formData.get("activity_description") ?? ""),
+      responsible_name: String(formData.get("responsible_name") ?? ""),
+      signed_at: String(formData.get("signed_at") ?? ""),
+      validated_at: startedAt,
+      subscription: {
+        plan: subscriptionPlan || null,
+        started_at: startedAt,
+        ends_at: endsAt,
+      },
+    };
 
-  const payload = {
-    nom: String(formData.get("nom") ?? ""),
-    entreprise: String(formData.get("entreprise") ?? "") || null,
-    telephone: String(formData.get("telephone") ?? "") || null,
-    email: String(formData.get("email") ?? ""),
-    statut: "client",
-    intake_data: intakeData,
-    owner_id: user.id,
-  };
-
-  const { data: newClient, error: clientError } = await supabase.from("clients").insert(payload).select("id").single();
-  if (clientError || !newClient) {
-    console.error("Error creating client:", clientError);
-    return;
-  }
-
-  // Handle signature
-  const signatureDataUrl = String(formData.get("signature_data_url") ?? "");
-  if (signatureDataUrl) {
-    await supabase.from("client_signatures").insert({
+    const payload = {
+      nom: String(formData.get("nom") ?? ""),
+      entreprise: String(formData.get("entreprise") ?? "") || null,
+      telephone: String(formData.get("telephone") ?? "") || null,
+      email: String(formData.get("email") ?? ""),
+      statut: "client",
+      intake_data: intakeData,
       owner_id: user.id,
-      client_id: newClient.id,
-      signature_data_url: signatureDataUrl,
-    });
-  }
+    };
 
-  // Handle documents
-  const docFields = ["doc_cni_recto", "doc_cni_verso", "doc_passeport", "doc_autre"];
-  const adminClient = createAdminClient();
-  
-  for (const field of docFields) {
-    const file = formData.get(field);
-    if (file instanceof File && file.size > 0) {
-      const docType = field.replace("doc_", "");
-      const path = `${user.id}/${newClient.id}/${docType}-${Date.now()}-${file.name}`;
-      
-      const { error: uploadError } = await adminClient.storage.from("client-documents").upload(path, file);
-      if (!uploadError) {
-        await supabase.from("client_documents").insert({
-          owner_id: user.id,
-          client_id: newClient.id,
-          doc_type: docType,
-          storage_path: path,
-          file_name: file.name,
-        });
+    const { data: newClient, error: clientError } = await supabase.from("clients").insert(payload).select("id").single();
+    if (clientError || !newClient) {
+      throw new Error(clientError?.message || "Erreur lors de la création du client");
+    }
+
+    // Handle signature
+    const signatureDataUrl = String(formData.get("signature_data_url") ?? "");
+    if (signatureDataUrl) {
+      await supabase.from("client_signatures").insert({
+        owner_id: user.id,
+        client_id: newClient.id,
+        signature_data_url: signatureDataUrl,
+      });
+    }
+
+    // Handle documents
+    const docFields = ["doc_cni_recto", "doc_cni_verso", "doc_passeport", "doc_autre"];
+    const adminClient = createAdminClient();
+    
+    for (const field of docFields) {
+      const file = formData.get(field);
+      if (file instanceof File && file.size > 0) {
+        const docType = field.replace("doc_", "");
+        // Normalize filename: remove spaces and non-ascii
+        const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase();
+        const path = `${user.id}/${newClient.id}/${docType}-${Date.now()}-${safeName}`;
+        
+        const { error: uploadError } = await adminClient.storage.from("client-documents").upload(path, file);
+        if (!uploadError) {
+          await supabase.from("client_documents").insert({
+            owner_id: user.id,
+            client_id: newClient.id,
+            doc_type: docType,
+            storage_path: path,
+            file_name: file.name,
+          });
+        }
       }
     }
+
+    await supabase.from("notifications").insert({
+      owner_id: user.id,
+      message: `Nouveau client ajouté: ${payload.nom}`,
+    });
+
+    revalidatePath("/app/clients");
+    revalidatePath("/app");
+  } catch (error) {
+    console.error("Critical error in createClientAction:", error);
+    // In Server Actions, throwing triggers the error boundary
+    throw error;
   }
-
-  await supabase.from("notifications").insert({
-    owner_id: user.id,
-    message: `Nouveau client ajouté: ${payload.nom}`,
-  });
-
-  revalidatePath("/app/clients");
-  revalidatePath("/app");
+  
   redirect("/app/clients");
 }
 
