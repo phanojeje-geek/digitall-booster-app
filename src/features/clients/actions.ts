@@ -116,7 +116,8 @@ export async function createClientAction(formData: FormData) {
     for (const field of docFields) {
       const file = formData.get(field);
       if (file instanceof File && file.size > 0) {
-        const docType = field.replace("doc_", "");
+        let docType = field.replace("doc_", "");
+        if (docType === "autre") docType = "document";
         // Normalize filename: remove spaces and non-ascii
         const safeName = file.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase();
         const path = `${user.id}/${newClient.id}/${docType}-${Date.now()}-${safeName}`;
@@ -258,7 +259,7 @@ export async function uploadClientDocumentAction(formData: FormData) {
   const docType = String(formData.get("doc_type") ?? "");
   const file = formData.get("file");
 
-  const allowedTypes = ["cni", "passeport", "cni_recto", "cni_verso", "autre"];
+  const allowedTypes = ["cni", "passeport", "cni_recto", "cni_verso", "document"];
   if (!clientId || !allowedTypes.includes(docType) || !(file instanceof File)) {
     return;
   }
