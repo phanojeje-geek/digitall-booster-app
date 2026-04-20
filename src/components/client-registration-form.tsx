@@ -7,6 +7,7 @@ import { SignaturePad } from "@/components/signature-pad";
 import { createClientAction } from "@/features/clients/actions";
 import { compressImage } from "@/lib/image-compression";
 import { Card } from "@/components/ui/card";
+import { saveClientOffline } from "@/lib/offline-storage";
 
 export function ClientRegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,12 +32,33 @@ export function ClientRegistrationForm() {
 
       await createClientAction(formData);
     } catch (error: any) {
-      // Next.js redirect() throws an error, we should not treat it as a failure
-      if (error.message === "NEXT_REDIRECT") {
+      if (error.message === "NEXT_REDIRECT") return;
+
+      const isNetworkError = !window.navigator.onLine || error.message?.includes("fetch");
+      if (isNetworkError) {
+        const plainData: any = {};
+        for (const [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            if (value.size > 0) {
+              const reader = new FileReader();
+              const base64 = await new Promise<string>((resolve) => {
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(value);
+              });
+              plainData[key] = { name: value.name, type: value.type, data: base64 };
+            }
+          } else {
+            plainData[key] = value;
+          }
+        }
+        await saveClientOffline(plainData);
+        alert("Connexion perdue. Le client a été enregistré localement et sera envoyé dès le retour du réseau.");
+        window.location.href = "/app";
         return;
       }
+
       console.error("Submission error:", error);
-      alert("Une erreur est survenue lors de l'enregistrement. Vérifiez votre connexion.");
+      alert("Une erreur est survenue lors de l'enregistrement.");
     } finally {
       setIsSubmitting(false);
     }

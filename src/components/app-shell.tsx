@@ -3,6 +3,7 @@ import { AppMobileDrawer } from "@/components/app-mobile-drawer";
 import { AppNav, type AppNavIcon, type AppNavLink } from "@/components/app-nav";
 import { CommercialLiveLocation } from "@/components/commercial-live-location";
 import { NotificationBell } from "@/components/notification-bell";
+import { OfflineSyncManager } from "@/components/offline-sync-manager";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-900 dark:bg-[#070b16] dark:text-zinc-100">
       {!isDemoMode ? <CommercialLiveLocation role={currentRole} /> : null}
+      <OfflineSyncManager />
       <div className="mx-auto grid min-h-screen max-w-[1500px] grid-cols-1 lg:grid-cols-[272px_1fr]">
         <aside className="sticky top-0 hidden h-screen border-r border-zinc-200/80 bg-white/88 p-4 backdrop-blur lg:flex lg:flex-col dark:border-zinc-800/80 dark:bg-[#0d1528]">
           <div className="mb-6 flex items-center gap-3 px-2">
