@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmForm } from "@/components/confirm-form";
 import { SignaturePad } from "@/components/signature-pad";
+import { ClientRegistrationForm } from "@/components/client-registration-form";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { mockClients } from "@/lib/mock-data";
 import { isDemoMode } from "@/lib/runtime";
@@ -162,124 +163,14 @@ export default async function ClientsPage({
         <p className="text-sm text-zinc-500">Pilotez prospects et clients dans une vue unifiee.</p>
       </div>
       {isCommercial ? (
-        <Card>
-          <h2 className="mb-3 font-semibold">Enregistrement client</h2>
-          <ConfirmForm
-            action={createClientAction}
-            confirmMessage="Confirmer l enregistrement de ce client ?"
-            className="grid gap-3 md:grid-cols-3"
-            encType="multipart/form-data"
-          >
-            <input type="hidden" name="statut" value="client" />
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Informations sur l entreprise</p>
-            </div>
-            <Input name="entreprise" placeholder="Nom de l entreprise" />
-            <Input name="company_sector" placeholder="Secteur d activite" />
-            <Input name="company_legal_form" placeholder="Forme juridique" />
-            <Input name="company_address" placeholder="Adresse" />
-            <Input name="company_city" placeholder="Ville" />
-            <Input name="company_country" placeholder="Pays" />
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Contact principal</p>
-            </div>
-            <Input name="nom" required placeholder="Nom & Prenoms" />
-            <Input name="contact_position" placeholder="Fonction" />
-            <Input name="telephone" placeholder="Telephone" />
-            <Input name="contact_whatsapp" placeholder="WhatsApp" />
-            <Input name="email" type="email" required placeholder="Email" />
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Presence digitale</p>
-            </div>
-            <Input name="facebook" placeholder="Page Facebook" />
-            <Input name="instagram" placeholder="Compte Instagram" />
-            <Input name="website" placeholder="Site Web" />
-            <Input name="other_platforms" placeholder="Autres plateformes" className="md:col-span-3" />
-
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Objectifs de l entreprise</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="objectives" value="Augmenter la visibilite" />
-                  Augmenter la visibilite
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="objectives" value="Attirer plus de clients" />
-                  Attirer plus de clients
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="objectives" value="Ameliorer l image de marque" />
-                  Ameliorer l image de marque
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="objectives" value="Booster les ventes" />
-                  Booster les ventes
-                </label>
-              </div>
-              <input
-                name="objectives_other"
-                placeholder="Autres..."
-                className="mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Choix de l abonnement</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="subscription_plan" value="6_mois_3000_fcfa" required />
-                  Formule 6 mois - 3000 FCFA
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="subscription_plan" value="12_mois_5000_fcfa" required />
-                  Formule 12 mois - 5000 FCFA
-                </label>
-              </div>
-            </div>
-
-            <div className="md:col-span-3">
-              <p className="text-sm font-semibold">Description de votre activite</p>
-              <textarea
-                name="activity_description"
-                rows={4}
-                className="mt-2 w-full rounded-md border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
-              />
-            </div>
-
-            <div className="md:col-span-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-              <p className="text-sm font-semibold">Documents d'identité</p>
-              <p className="text-xs text-zinc-500 mb-3">Prenez une photo des pièces d'identité (CNI recto/verso, Passeport, etc.)</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] uppercase font-bold text-zinc-500">CNI Recto (ou Document Principal)</label>
-                  <input type="file" name="doc_cni_recto" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] uppercase font-bold text-zinc-500">CNI Verso</label>
-                  <input type="file" name="doc_cni_verso" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] uppercase font-bold text-zinc-500">Passeport</label>
-                  <input type="file" name="doc_passeport" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] uppercase font-bold text-zinc-500">Autre Document</label>
-                  <input type="file" name="doc_autre" accept="image/*" capture="environment" className="h-10 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800" />
-                </div>
-              </div>
-            </div>
-
-            <div className="md:col-span-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-              <p className="text-sm font-semibold mb-3">Signature du client</p>
-              <SignaturePad />
-            </div>
-
-            <div className="md:col-span-3 pt-4">
-              <Button type="submit" className="w-full md:w-auto px-10 py-6 text-base font-bold shadow-lg shadow-indigo-500/20">
-                Finaliser l'enregistrement
-              </Button>
-            </div>
-          </ConfirmForm>
+        <Card className="overflow-hidden border-indigo-100 shadow-xl shadow-indigo-500/5 dark:border-indigo-900/20">
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4">
+            <h2 className="text-lg font-bold text-white">Enregistrement client</h2>
+            <p className="text-xs text-indigo-100/80">Remplissez tous les champs pour créer un dossier complet.</p>
+          </div>
+          <div className="p-6">
+            <ClientRegistrationForm />
+          </div>
         </Card>
       ) : (
         <Card>
