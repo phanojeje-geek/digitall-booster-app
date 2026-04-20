@@ -286,16 +286,16 @@ export function NotificationBell() {
     } = await supabase.auth.getUser();
     if (!user) return;
     const now = new Date().toISOString();
-    const result = await supabase.from("notification_reads").upsert({
-      notification_id: notificationId,
-      user_id: user.id,
-      read_at: now,
-      trashed_at: now,
-      deleted_at: null,
-    });
-    if (result.error) {
-      await supabase.from("notification_reads").upsert({ notification_id: notificationId, user_id: user.id });
-    }
+    await supabase.from("notification_reads").upsert(
+      {
+        notification_id: notificationId,
+        user_id: user.id,
+        read_at: now,
+        trashed_at: now,
+        deleted_at: null,
+      },
+      { onConflict: "notification_id,user_id" },
+    );
     setItems((prev) => prev.filter((i) => i.id !== notificationId));
   }
 
@@ -320,12 +320,16 @@ export function NotificationBell() {
     } = await supabase.auth.getUser();
     if (!user) return;
     const now = new Date().toISOString();
-    const result = await supabase
-      .from("notification_reads")
-      .upsert({ notification_id: notificationId, user_id: user.id, deleted_at: now, trashed_at: null, read_at: now });
-    if (result.error) {
-      await supabase.from("notification_reads").upsert({ notification_id: notificationId, user_id: user.id });
-    }
+    await supabase.from("notification_reads").upsert(
+      {
+        notification_id: notificationId,
+        user_id: user.id,
+        deleted_at: now,
+        trashed_at: null,
+        read_at: now,
+      },
+      { onConflict: "notification_id,user_id" },
+    );
     setItems((prev) => prev.filter((i) => i.id !== notificationId));
   }
 
