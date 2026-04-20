@@ -94,12 +94,12 @@ export function ClientRegistrationForm() {
         <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Choix de l'abonnement</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900">
-            <input type="radio" name="subscription_plan" value="6_mois_3000_fcfa" required className="text-indigo-600 focus:ring-indigo-600" />
-            Formule 6 mois - 3000 FCFA
+            <input type="radio" name="subscription_plan" value="6_mois_5000_fcfa" required className="text-indigo-600 focus:ring-indigo-600" />
+            Formule 6 mois - 5000 FCFA
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg border border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900">
-            <input type="radio" name="subscription_plan" value="12_mois_5000_fcfa" required className="text-indigo-600 focus:ring-indigo-600" />
-            Formule 12 mois - 5000 FCFA
+            <input type="radio" name="subscription_plan" value="12_mois_10000_fcfa" required className="text-indigo-600 focus:ring-indigo-600" />
+            Formule 12 mois - 10000 FCFA
           </label>
         </div>
       </div>
