@@ -150,7 +150,7 @@ export default async function ClientOnboardingPage({
         <div className="flex items-center gap-2">
           {canDownloadPdf ? (
             <Link href={`/api/clients/${id}/signature`}>
-              <Button type="button" variant="default" className="bg-indigo-600 hover:bg-indigo-700">
+              <Button type="button" variant="primary" className="bg-indigo-600 hover:bg-indigo-700">
                 Télécharger Fiche PDF
               </Button>
             </Link>
